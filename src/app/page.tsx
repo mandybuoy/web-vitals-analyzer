@@ -102,7 +102,7 @@ export default function Home() {
         <div className="relative max-w-2xl mx-auto mb-8">
           <div className="relative flex items-center bg-vecton-dark border border-vecton-beige/10 rounded-lg overflow-hidden focus-within:border-vecton-orange/30 transition-colors">
             {/* Search icon */}
-            <svg className="w-4 h-4 text-vecton-beige/25 ml-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="w-4 h-4 text-white/60 ml-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
             <input
@@ -111,7 +111,7 @@ export default function Home() {
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter URL to analyze (e.g., example.com)"
-              className="flex-1 bg-transparent text-vecton-beige placeholder-vecton-beige/20 px-4 py-4 text-sm font-mono focus:outline-none"
+              className="flex-1 bg-transparent text-white placeholder-white/50 px-4 py-4 text-sm font-mono focus:outline-none"
               disabled={state === 'fetching'}
             />
             <button
@@ -150,8 +150,8 @@ export default function Home() {
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="32" strokeLinecap="round" />
               </svg>
               <div className="text-left">
-                <p className="text-sm text-vecton-beige">Running PageSpeed Insights</p>
-                <p className="text-[11px] text-vecton-beige/30">Testing mobile &amp; desktop — 15-30 seconds...</p>
+                <p className="text-sm text-white">Running PageSpeed Insights</p>
+                <p className="text-[11px] text-white/50">Testing mobile &amp; desktop — 15-30 seconds...</p>
               </div>
             </div>
           </div>
