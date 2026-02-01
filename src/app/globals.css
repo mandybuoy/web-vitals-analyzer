@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Instrument Sans', Arial, sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 110%;
+  background: #24140D;
+  color: #E8E9D7;
+  min-height: 100vh;
+}
+
+/* Vecton dotted grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 86, 49, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle orange gradient orb */
+body::after {
+  content: '';
+  position: fixed;
+  top: -15%;
+  right: -5%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(255, 86, 49, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#__next, main {
+  position: relative;
+  z-index: 1;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 86, 49, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 86, 49, 0.5);
+}
+
+/* Animation */
+@keyframes fadeUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fadeUp 0.6s ease-out forwards;
+}
+
+/* Focus arrow decorative element */
+.focus-arrow::before,
+.focus-arrow::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: #FF5631;
+  border-style: solid;
+}
+.focus-arrow::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+.focus-arrow::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
