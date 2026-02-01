@@ -35,20 +35,20 @@ export default function MetricCard({ metric, delay = 0 }: MetricCardProps) {
         <div>
           <div className="flex items-center gap-2">
             <div className={`w-1.5 h-1.5 rounded-full ${s.dot}`} />
-            <span className="text-sm text-vecton-beige">{metric.shortName}</span>
+            <span className="text-sm text-vecton-dark">{metric.shortName}</span>
           </div>
-          <p className="text-[11px] text-vecton-beige/40 mt-0.5">{metric.name}</p>
+          <p className="text-[11px] text-vecton-dark/40 mt-0.5">{metric.name}</p>
         </div>
         <div className="text-right">
           <span className={`text-lg ${s.text}`} style={{ lineHeight: '110%' }}>
             {metric.displayValue}
           </span>
-          <p className="text-[10px] text-vecton-beige/30 uppercase tracking-wider">
+          <p className="text-[10px] text-vecton-dark/30 uppercase tracking-wider">
             Score: {(metric.score * 100).toFixed(0)}
           </p>
         </div>
       </div>
-      <p className="text-[11px] text-vecton-beige/35 leading-brand">{metric.description}</p>
+      <p className="text-[11px] text-vecton-dark/35 leading-brand">{metric.description}</p>
     </div>
   );
 }

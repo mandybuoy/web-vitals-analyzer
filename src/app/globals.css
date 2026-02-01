@@ -16,8 +16,8 @@ body {
   font-weight: 400;
   font-style: normal;
   line-height: 110%;
-  background: #24140D;
-  color: #E8E9D7;
+  background: #E8E9D7;
+  color: #24140D;
   min-height: 100vh;
 }
 
@@ -26,7 +26,7 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(255, 86, 49, 0.08) 1px, transparent 1px);
+  background-image: radial-gradient(circle, rgba(36, 20, 13, 0.04) 1px, transparent 1px);
   background-size: 32px 32px;
   pointer-events: none;
   z-index: 0;
@@ -40,7 +40,7 @@ body::after {
   right: -5%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(255, 86, 49, 0.06) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255, 86, 49, 0.03) 0%, transparent 70%);
   pointer-events: none;
   z-index: 0;
 }

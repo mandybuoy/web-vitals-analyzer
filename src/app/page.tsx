@@ -89,11 +89,11 @@ export default function Home() {
             <div className="w-5 h-[1px] bg-vecton-orange/60" />
           </div>
 
-          <h1 className="text-4xl sm:text-5xl text-vecton-beige leading-brand tracking-tight mb-4">
+          <h1 className="text-4xl sm:text-5xl text-vecton-dark leading-brand tracking-tight mb-4">
             Vital<span className="text-vecton-orange">Scan</span>
           </h1>
-          <p className="text-vecton-beige/40 max-w-md mx-auto text-sm leading-brand">
-            Paste any URL. Get a full Core Web Vitals audit with 
+          <p className="text-vecton-dark/60 max-w-md mx-auto text-sm leading-brand">
+            Paste any URL. Get a full Core Web Vitals audit with
             AI-powered recommendations for performance.
           </p>
         </div>
@@ -186,11 +186,11 @@ export default function Home() {
         {/* Footer */}
         <footer className="text-center mt-16 pb-8">
           <div className="flex items-center justify-center gap-3">
-            <div className="w-8 h-[1px] bg-vecton-beige/8" />
-            <p className="text-[11px] text-vecton-beige/20 uppercase tracking-widest">
+            <div className="w-8 h-[1px] bg-vecton-dark/20" />
+            <p className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
               Powered by Google PSI &amp; Claude AI
             </p>
-            <div className="w-8 h-[1px] bg-vecton-beige/8" />
+            <div className="w-8 h-[1px] bg-vecton-dark/20" />
           </div>
         </footer>
       </div>
