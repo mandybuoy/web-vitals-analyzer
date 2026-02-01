@@ -10,7 +10,7 @@ interface AnalysisReportProps {
 function renderMarkdown(text: string): string {
   let html = text
     .replace(/^### (.+)$/gm, '<h3 class="text-sm text-vecton-dark mt-5 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-base text-vecton-dark mt-6 mb-3 pb-2 border-b border-vecton-dark/10">$2</h2>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-base text-vecton-dark mt-6 mb-3 pb-2 border-b border-vecton-dark/10">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-lg text-vecton-dark mt-6 mb-3">$1</h1>')
     .replace(/\*\*(.+?)\*\*/g, '<strong class="text-vecton-dark">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em class="text-vecton-dark/70">$1</em>')
