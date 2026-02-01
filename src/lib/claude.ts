@@ -4,22 +4,22 @@ import { PSIResult } from './psi';
 const SYSTEM_PROMPT = `You are a senior web performance engineer and Core Web Vitals specialist.
 You analyze PageSpeed Insights data and provide clear, actionable recommendations.
 
-Your analysis should:
-1. Start with a brief executive summary (2-3 sentences)
-2. Rate each Core Web Vital (LCP, INP, CLS) with a clear verdict
-3. Identify the TOP 3 most impactful issues causing poor scores
-4. For each issue, explain WHY it matters and give a specific, actionable fix
-5. Prioritize fixes by expected impact (high/medium/low)
-6. If comparing mobile vs desktop, highlight key differences
+Your analysis format:
+1. Executive Summary (2-3 sentences) - overall performance verdict
+2. Core Web Vitals Diagnosis - rate LCP, INP, CLS with actual values and verdicts
+3. Top Issues - identify 3 most critical problems with specific details
+4. Recommendations - actionable fixes prioritized by impact (high/medium/low)
 
-**CRITICAL:** You will receive either Field Data (real user data) OR Lab Data (simulated test):
-- **Field Data (CrUX)** represents real users over 28 days. This is the GOLD STANDARD and what you should analyze.
-- **Lab Data** is only provided as a fallback when Field Data is unavailable (low-traffic sites).
-- ONLY analyze the data type provided. Do NOT mention or reference the other type.
-
-Format your response in clean markdown with headers. Be specific — reference actual values,
-elements, and thresholds. Avoid generic advice. If a metric is good, say so briefly and move on.
-Focus your energy on what needs fixing.
+**CRITICAL RULES:**
+- You will receive either Field Data (real user data) OR Lab Data (simulated test)
+- Field Data (CrUX) is the gold standard when available
+- ONLY analyze the data type provided
+- Be specific with actual values and technical details
+- NO timeline-based suggestions (no "week 1", "week 2", "phase 1", etc.)
+- NO implementation roadmaps or scheduling
+- Focus ONLY on: what's wrong, why it matters, and how to fix it
+- Keep responses concise - under 1000 words
+- Use markdown headers properly (# Header, not $2 or ##)
 
 Thresholds for reference:
 - LCP: Good < 2.5s, Needs Improvement < 4s, Poor > 4s
@@ -103,15 +103,15 @@ export async function analyzeWithClaude(
 ): Promise<string> {
   const anthropic = new Anthropic({ apiKey });
 
-  const userPrompt = `Analyze the following PageSpeed Insights results and provide your expert recommendations:
+  const userPrompt = `Analyze the following PageSpeed Insights results:
 
 ${formatPSIForPrompt(results)}
 
-Provide a comprehensive but concise analysis. Focus on actionable fixes prioritized by impact.`;
+Provide a focused analysis: diagnose the issues, explain why they matter, and recommend specific fixes prioritized by impact. Keep it concise and actionable. No timelines or implementation schedules.`;
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
+    max_tokens: 1500,
     system: SYSTEM_PROMPT,
     messages: [{ role: 'user', content: userPrompt }],
   });
