@@ -8,17 +8,36 @@ interface AnalysisReportProps {
 }
 
 function renderMarkdown(text: string): string {
-  let html = text
-    .replace(/^### (.+)$/gm, '<h3 class="text-sm text-vecton-dark mt-5 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-base text-vecton-dark mt-6 mb-3 pb-2 border-b border-vecton-dark/10">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-lg text-vecton-dark mt-6 mb-3">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-vecton-dark">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em class="text-vecton-dark/70">$1</em>')
-    .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-vecton-orange/10 text-vecton-orange rounded text-[11px] font-mono">$1</code>')
-    .replace(/^- (.+)$/gm, '<li class="text-vecton-dark/60 text-sm ml-4 mb-1 list-disc">$1</li>')
-    .replace(/^(\d+)\. (.+)$/gm, '<li class="text-vecton-dark/60 text-sm ml-4 mb-1 list-decimal" value="$1">$2</li>')
-    .replace(/\n\n/g, '</p><p class="text-vecton-dark/60 text-sm leading-brand mb-3">')
-    .replace(/\n/g, '<br />');
+  // Process line by line to avoid conflicts
+  const lines = text.split('\n');
+  const processed = lines.map(line => {
+    // Headers - most specific first
+    if (line.match(/^### /)) {
+      return line.replace(/^### (.+)$/, '<h3 class="text-sm text-vecton-dark mt-5 mb-2">$1</h3>');
+    }
+    if (line.match(/^## /)) {
+      return line.replace(/^## (.+)$/, '<h2 class="text-base text-vecton-dark mt-6 mb-3 pb-2 border-b border-vecton-dark/10">$1</h2>');
+    }
+    if (line.match(/^# /)) {
+      return line.replace(/^# (.+)$/, '<h1 class="text-lg text-vecton-dark mt-6 mb-3">$1</h1>');
+    }
+    // Lists
+    if (line.match(/^\d+\. /)) {
+      return line.replace(/^(\d+)\. (.+)$/, '<li class="text-vecton-dark/60 text-sm ml-4 mb-1 list-decimal">$2</li>');
+    }
+    if (line.match(/^- /)) {
+      return line.replace(/^- (.+)$/, '<li class="text-vecton-dark/60 text-sm ml-4 mb-1 list-disc">$1</li>');
+    }
+    // Inline formatting
+    return line
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="text-vecton-dark">$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em class="text-vecton-dark/70">$1</em>')
+      .replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 bg-vecton-orange/10 text-vecton-orange rounded text-[11px] font-mono">$1</code>');
+  });
+
+  // Join with breaks and wrap in paragraphs
+  let html = processed.join('<br />');
+  html = html.replace(/<br \/><br \/>/g, '</p><p class="text-vecton-dark/60 text-sm leading-brand mb-3">');
 
   return `<p class="text-vecton-dark/60 text-sm leading-brand mb-3">${html}</p>`;
 }
