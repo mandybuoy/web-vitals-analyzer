@@ -1,0 +1,339 @@
+// 4-stage pipeline orchestrator
+// Stage 1: Data Collection (PSI + HTML fetch)
+// Stage 2: HTML Signal Extraction (Sonnet via OpenRouter)
+// Stage 3: Deep Analysis (Opus via OpenRouter, mobile + desktop in parallel)
+// Stage 4: Report Assembly + SQLite persistence
+
+import { z } from "zod";
+import { fetchPSI } from "./psi";
+import type {
+  PSIResult,
+  ExtractedSignals,
+  DeviceReport,
+  AnalysisReport,
+  SourceStats,
+} from "./types";
+import {
+  extractedSignalsToSourceStats,
+  psiRatingToVitalRating,
+  cruxCategoryToVitalRating,
+} from "./types";
+import { getGoogleApiKey } from "./config";
+import { getSetting } from "./db";
+import { DEFAULT_EXTRACTION_MODEL, DEFAULT_INTELLIGENCE_MODEL } from "./config";
+import { fetchHTML } from "./html-fetcher";
+import { callOpenRouter } from "./openrouter";
+import { buildExtractionPrompt, buildTier2Prompt } from "./prompts";
+import { saveAnalysis } from "./db";
+import {
+  updateStage,
+  setError,
+  setComplete,
+  getAbortSignal,
+} from "./pipeline-store";
+
+// ----- Zod Schemas -----
+
+const extractedSignalsSchema = z.object({
+  dom_stats: z.object({
+    html_size_bytes: z.number(),
+    estimated_dom_nodes: z.number(),
+    anchor_count: z.number(),
+    form_element_count: z.number(),
+    img_total: z.number(),
+    img_without_dimensions: z.number(),
+    img_lazy_loaded: z.number(),
+    picture_elements: z.number(),
+  }),
+  scripts: z.object({
+    total: z.number(),
+    render_blocking: z.array(
+      z.object({ src: z.string(), position: z.string() }),
+    ),
+    async_scripts: z.array(z.object({ src: z.string() })),
+    defer_scripts: z.array(z.object({ src: z.string() })),
+    inline_script_count: z.number(),
+    inline_script_size_bytes: z.number(),
+  }),
+  css: z.object({
+    stylesheet_count: z.number(),
+    inline_style_blocks: z.number(),
+    has_critical_css_inlined: z.boolean(),
+  }),
+  fonts: z.object({
+    preloaded: z.array(z.string()),
+    font_display_values: z.record(z.string(), z.number()),
+  }),
+  third_party: z.object({
+    domains: z.array(z.string()),
+    scripts: z.array(
+      z.object({
+        src: z.string(),
+        position: z.string(),
+        loading: z.string(),
+        category: z.string(),
+      }),
+    ),
+  }),
+  patterns: z.object({
+    fetchpriority_high_on_content: z.boolean(),
+    image_formats: z.record(z.string(), z.number()),
+    preconnect_hints: z.array(z.string()),
+    preload_hints_non_font: z.array(z.string()),
+  }),
+  lcp_candidates: z.object({
+    hero_image_src: z.string().nullable(),
+    hero_image_preloaded: z.boolean(),
+    h1_text: z.string().nullable(),
+  }),
+});
+
+const severityEnum = z.enum(["critical", "high", "medium", "low"]);
+const difficultyEnum = z.enum(["easy", "moderate", "hard"]);
+const ratingEnum = z.enum(["good", "needs_improvement", "poor"]);
+
+const issueSchema = z.object({
+  name: z.string(),
+  type: z.enum(["first_party", "third_party"]),
+  description: z.string(),
+  fix: z.string(),
+  impact_metric: z.string(),
+  severity: severityEnum,
+  difficulty: difficultyEnum,
+});
+
+const deviceReportSchema = z.object({
+  device: z.enum(["mobile", "desktop"]),
+  field_metrics: z.object({
+    lcp: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
+    inp: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
+    cls: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
+  }),
+  lab_metrics: z.object({
+    performance_score: z.number(),
+    lcp: z.number(),
+    tbt: z.number(),
+    cls: z.number(),
+    fcp: z.number(),
+    si: z.number(),
+  }),
+  inp_analysis: z.object({ issues: z.array(issueSchema) }),
+  lcp_analysis: z.object({ issues: z.array(issueSchema) }),
+  cls_analysis: z.object({ issues: z.array(issueSchema) }),
+  third_party_matrix: z.array(
+    z.object({
+      script_name: z.string(),
+      domain: z.string(),
+      category: z.string(),
+      loading: z.string(),
+      lcp_impact: severityEnum,
+      cls_impact: severityEnum,
+      inp_impact: severityEnum,
+      recommendation: z.enum(["remove", "defer", "lazy_load", "keep"]),
+      fix: z.string(),
+    }),
+  ),
+  priority_table: z.array(
+    z.object({
+      rank: z.number(),
+      fix: z.string(),
+      affects: z.array(z.enum(["INP", "LCP", "CLS"])),
+      severity: severityEnum,
+      difficulty: difficultyEnum,
+      estimated_improvement: z.string(),
+    }),
+  ),
+});
+
+// ----- Check abort -----
+
+function checkAbort(analysisId: string): void {
+  const signal = getAbortSignal(analysisId);
+  if (signal?.aborted) {
+    throw new Error("Analysis cancelled");
+  }
+}
+
+// ----- Default empty SourceStats -----
+
+const EMPTY_SOURCE_STATS: SourceStats = {
+  dom_nodes: 0,
+  html_size_kb: 0,
+  total_scripts: 0,
+  render_blocking_scripts: 0,
+  stylesheets: 0,
+  total_images: 0,
+  images_without_dimensions: 0,
+  third_party_domains: 0,
+};
+
+// ----- Pipeline Entry Point -----
+
+export async function runPipeline(
+  analysisId: string,
+  url: string,
+): Promise<void> {
+  const warnings: string[] = [];
+
+  try {
+    // ===== STAGE 1: Data Collection =====
+    checkAbort(analysisId);
+
+    const psiApiKey = getGoogleApiKey();
+    if (!psiApiKey) {
+      throw new Error("GOOGLE_PSI_API_KEY not set. Add it to your .env file.");
+    }
+
+    const [mobileResult, desktopResult, htmlResult] = await Promise.allSettled([
+      fetchPSI(url, "mobile", psiApiKey),
+      fetchPSI(url, "desktop", psiApiKey),
+      fetchHTML(url),
+    ]);
+
+    const mobilePsi =
+      mobileResult.status === "fulfilled" ? mobileResult.value : null;
+    const desktopPsi =
+      desktopResult.status === "fulfilled" ? desktopResult.value : null;
+    const fetchedHtml =
+      htmlResult.status === "fulfilled" ? htmlResult.value : null;
+
+    if (!mobilePsi && !desktopPsi) {
+      throw new Error(
+        "Both mobile and desktop PSI requests failed. " +
+          `Mobile: ${mobileResult.status === "rejected" ? mobileResult.reason : "N/A"}. ` +
+          `Desktop: ${desktopResult.status === "rejected" ? desktopResult.reason : "N/A"}.`,
+      );
+    }
+
+    if (!mobilePsi) warnings.push("Mobile PSI analysis failed");
+    if (!desktopPsi) warnings.push("Desktop PSI analysis failed");
+    if (!fetchedHtml)
+      warnings.push("HTML fetch failed — analysis will use PSI data only");
+
+    updateStage(analysisId, 2, "Extracting", 25);
+
+    // ===== STAGE 2: HTML Signal Extraction =====
+    checkAbort(analysisId);
+
+    let extractedSignals: ExtractedSignals | null = null;
+    let sourceStats: SourceStats = EMPTY_SOURCE_STATS;
+
+    if (fetchedHtml) {
+      const extractionModel =
+        getSetting("extraction_model") ?? DEFAULT_EXTRACTION_MODEL;
+
+      const { system, user } = buildExtractionPrompt(
+        fetchedHtml.head,
+        fetchedHtml.fullHtml,
+      );
+
+      try {
+        const result = await callOpenRouter({
+          model: extractionModel,
+          systemPrompt: system,
+          userPrompt: user,
+          schema: extractedSignalsSchema,
+          analysisId,
+          tier: "extraction",
+          signal: getAbortSignal(analysisId),
+        });
+        extractedSignals = result.data;
+        sourceStats = extractedSignalsToSourceStats(extractedSignals);
+      } catch (err) {
+        console.warn("[pipeline] HTML extraction failed:", err);
+        warnings.push("HTML signal extraction failed — using PSI data only");
+      }
+    }
+
+    updateStage(analysisId, 3, "Analyzing", 40);
+
+    // ===== STAGE 3: Deep Analysis (Opus, parallel mobile + desktop) =====
+    checkAbort(analysisId);
+
+    const intelligenceModel =
+      getSetting("intelligence_model") ?? DEFAULT_INTELLIGENCE_MODEL;
+    const headHtml = fetchedHtml?.head ?? "";
+
+    const analyzeDevice = async (
+      psiResult: PSIResult,
+      device: "mobile" | "desktop",
+    ): Promise<DeviceReport> => {
+      const { system, user } = buildTier2Prompt(
+        psiResult,
+        extractedSignals,
+        headHtml,
+        device,
+      );
+
+      const result = await callOpenRouter({
+        model: intelligenceModel,
+        systemPrompt: system,
+        userPrompt: user,
+        schema: deviceReportSchema,
+        analysisId,
+        tier: "intelligence",
+        signal: getAbortSignal(analysisId),
+      });
+
+      return result.data;
+    };
+
+    const analysisPromises: Promise<DeviceReport | null>[] = [];
+
+    if (mobilePsi) {
+      analysisPromises.push(
+        analyzeDevice(mobilePsi, "mobile").catch((err) => {
+          console.warn("[pipeline] Mobile analysis failed:", err);
+          warnings.push("Mobile deep analysis failed");
+          return null;
+        }),
+      );
+    } else {
+      analysisPromises.push(Promise.resolve(null));
+    }
+
+    if (desktopPsi) {
+      analysisPromises.push(
+        analyzeDevice(desktopPsi, "desktop").catch((err) => {
+          console.warn("[pipeline] Desktop analysis failed:", err);
+          warnings.push("Desktop deep analysis failed");
+          return null;
+        }),
+      );
+    } else {
+      analysisPromises.push(Promise.resolve(null));
+    }
+
+    const [mobileReport, desktopReport] = await Promise.all(analysisPromises);
+
+    updateStage(analysisId, 4, "Generating", 85);
+
+    // ===== STAGE 4: Report Assembly =====
+    checkAbort(analysisId);
+
+    const report: AnalysisReport = {
+      id: analysisId,
+      url,
+      timestamp: new Date().toISOString(),
+      source_stats: sourceStats,
+      mobile: mobileReport,
+      desktop: desktopReport,
+      warnings,
+    };
+
+    // Write to SQLite FIRST, then update progress (prevents race condition)
+    try {
+      saveAnalysis(report);
+    } catch (err) {
+      console.warn("[pipeline] Failed to save to SQLite:", err);
+      warnings.push("Report saved in memory only — database write failed");
+    }
+
+    setComplete(analysisId);
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Unknown pipeline error";
+    console.error("[pipeline] Error:", message);
+    setError(analysisId, message);
+  }
+}

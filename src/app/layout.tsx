@@ -1,9 +1,10 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'VitalScan by Vecton — Core Web Vitals Analyzer',
-  description: 'AI-powered Core Web Vitals analysis with actionable recommendations. Built by Vecton.',
+  title: "VitalScan by Vecton — Core Web Vitals Analyzer",
+  description:
+    "AI-powered Core Web Vitals analysis with actionable recommendations. Built by Vecton.",
 };
 
 export default function RootLayout({
@@ -14,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        <main className="relative z-10">
-          {children}
-        </main>
+        <main className="relative z-10">{children}</main>
       </body>
     </html>
   );

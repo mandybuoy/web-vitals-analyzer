@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 interface ScoreGaugeProps {
   score: number;
@@ -8,18 +8,23 @@ interface ScoreGaugeProps {
 }
 
 function getColor(score: number): string {
-  if (score >= 90) return '#0cce6b';
-  if (score >= 50) return '#ffa400';
-  return '#ff4e42';
+  if (score >= 90) return "#0cce6b";
+  if (score >= 50) return "#ffa400";
+  return "#ff4e42";
 }
 
 function getLabel(score: number): string {
-  if (score >= 90) return 'Good';
-  if (score >= 50) return 'Needs Work';
-  return 'Poor';
+  if (score >= 90) return "Good";
+  if (score >= 50) return "Needs Work";
+  return "Poor";
 }
 
-export default function ScoreGauge({ score, size = 120, label, animate = true }: ScoreGaugeProps) {
+export default function ScoreGauge({
+  score,
+  size = 120,
+  label,
+  animate = true,
+}: ScoreGaugeProps) {
   const radius = 45;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
@@ -29,20 +34,33 @@ export default function ScoreGauge({ score, size = 120, label, animate = true }:
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox="0 0 100 100" className="transform -rotate-90">
+        <svg
+          width={size}
+          height={size}
+          viewBox="0 0 100 100"
+          className="transform -rotate-90"
+        >
           <circle
-            cx="50" cy="50" r={radius}
-            fill="none" stroke="rgba(232,233,215,0.08)"
+            cx="50"
+            cy="50"
+            r={radius}
+            fill="none"
+            stroke="rgba(232,233,215,0.08)"
             strokeWidth={strokeWidth}
           />
           <circle
-            cx="50" cy="50" r={radius}
-            fill="none" stroke={color}
+            cx="50"
+            cy="50"
+            r={radius}
+            fill="none"
+            stroke={color}
             strokeWidth={strokeWidth}
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={animate ? offset : circumference}
-            style={{ transition: animate ? 'stroke-dashoffset 1.5s ease-out' : 'none' }}
+            style={{
+              transition: animate ? "stroke-dashoffset 1.5s ease-out" : "none",
+            }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">

@@ -37,10 +37,10 @@ ANTHROPIC_API_KEY=your_key_here
 
 **Getting your API keys:**
 
-| Key | Where | Cost |
-|-----|-------|------|
-| `GOOGLE_PSI_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Enable "PageSpeed Insights API" → Create Credentials → API Key | Free |
-| `ANTHROPIC_API_KEY` | [Anthropic Console](https://console.anthropic.com/settings/keys) → Create Key | Pay-per-use |
+| Key                  | Where                                                                                                                                      | Cost        |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------- |
+| `GOOGLE_PSI_API_KEY` | [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Enable "PageSpeed Insights API" → Create Credentials → API Key | Free        |
+| `ANTHROPIC_API_KEY`  | [Anthropic Console](https://console.anthropic.com/settings/keys) → Create Key                                                              | Pay-per-use |
 
 ### 3. Run Locally
 

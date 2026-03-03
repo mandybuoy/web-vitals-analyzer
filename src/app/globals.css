@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -12,21 +12,25 @@
 }
 
 body {
-  font-family: 'Instrument Sans', Arial, sans-serif;
+  font-family: "Instrument Sans", Arial, sans-serif;
   font-weight: 400;
   font-style: normal;
   line-height: 110%;
-  background: #E8E9D7;
-  color: #24140D;
+  background: #e8e9d7;
+  color: #24140d;
   min-height: 100vh;
 }
 
 /* Vecton dotted grid background */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(36, 20, 13, 0.04) 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    rgba(36, 20, 13, 0.04) 1px,
+    transparent 1px
+  );
   background-size: 32px 32px;
   pointer-events: none;
   z-index: 0;
@@ -34,18 +38,23 @@ body::before {
 
 /* Subtle orange gradient orb */
 body::after {
-  content: '';
+  content: "";
   position: fixed;
   top: -15%;
   right: -5%;
   width: 500px;
   height: 500px;
-  background: radial-gradient(circle, rgba(255, 86, 49, 0.03) 0%, transparent 70%);
+  background: radial-gradient(
+    circle,
+    rgba(255, 86, 49, 0.03) 0%,
+    transparent 70%
+  );
   pointer-events: none;
   z-index: 0;
 }
 
-#__next, main {
+#__next,
+main {
   position: relative;
   z-index: 1;
 }
@@ -67,8 +76,14 @@ body::after {
 
 /* Animation */
 @keyframes fadeUp {
-  0% { opacity: 0; transform: translateY(20px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .animate-fade-up {
   animation: fadeUp 0.6s ease-out forwards;
@@ -77,11 +92,11 @@ body::after {
 /* Focus arrow decorative element */
 .focus-arrow::before,
 .focus-arrow::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 12px;
   height: 12px;
-  border-color: #FF5631;
+  border-color: #ff5631;
   border-style: solid;
 }
 .focus-arrow::before {
