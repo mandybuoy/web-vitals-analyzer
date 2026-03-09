@@ -109,6 +109,7 @@ export interface Issue {
   type: IssueType;
   description: string;
   fix: string;
+  code_example?: string | null;
   impact_metric: string;
   severity: Severity;
   difficulty: Difficulty;
@@ -126,6 +127,7 @@ export interface ThirdPartyEntry {
   inp_impact: Severity;
   recommendation: ThirdPartyAction;
   fix: string;
+  code_example?: string | null;
 }
 
 // ----- Priority Fix -----

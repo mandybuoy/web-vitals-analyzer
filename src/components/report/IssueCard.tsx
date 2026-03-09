@@ -54,6 +54,16 @@ export default function IssueCard({
                 {issue.fix}
               </p>
             </div>
+            {issue.code_example && (
+              <div className="mt-2 p-3 rounded bg-vecton-dark border border-vecton-dark/20 overflow-x-auto">
+                <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
+                  Code
+                </p>
+                <pre className="text-xs text-green-300/90 font-mono whitespace-pre-wrap leading-relaxed">
+                  <code>{issue.code_example}</code>
+                </pre>
+              </div>
+            )}
             {issue.impact_metric && (
               <p className="text-[10px] text-vecton-dark/40 mt-2 font-mono">
                 Impact: {issue.impact_metric}

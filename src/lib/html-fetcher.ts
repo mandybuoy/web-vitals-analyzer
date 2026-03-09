@@ -1,7 +1,12 @@
 // HTML fetcher — downloads target URL HTML for LLM signal extraction
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
 const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+
+const CHROME_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+const CHROME_UA_ALT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
 
 export interface FetchedHTML {
   fullHtml: string;
@@ -10,22 +15,39 @@ export interface FetchedHTML {
   fetchTimeMs: number;
 }
 
-export async function fetchHTML(url: string): Promise<FetchedHTML> {
+async function attemptFetch(
+  url: string,
+  userAgent: string,
+  timeoutMs: number,
+): Promise<FetchedHTML> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const startTime = Date.now();
 
     const response = await fetch(url, {
       headers: {
-        "User-Agent":
-          "VitalScan/2.0 (Web Vitals Analyzer; +https://vitalscan.dev)",
-        Accept: "text/html,application/xhtml+xml",
+        "User-Agent": userAgent,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
       },
       redirect: "follow",
       signal: controller.signal,
     });
+
+    if (response.status === 403 || response.status === 503) {
+      throw new BotBlockedError(
+        `HTTP ${response.status}: ${response.statusText}`,
+      );
+    }
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -75,5 +97,25 @@ export async function fetchHTML(url: string): Promise<FetchedHTML> {
     };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+class BotBlockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BotBlockedError";
+  }
+}
+
+export async function fetchHTML(url: string): Promise<FetchedHTML> {
+  try {
+    return await attemptFetch(url, CHROME_UA, TIMEOUT_MS);
+  } catch (err) {
+    // Retry once with alternate UA on bot-block responses
+    if (err instanceof BotBlockedError) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return await attemptFetch(url, CHROME_UA_ALT, TIMEOUT_MS);
+    }
+    throw err;
   }
 }

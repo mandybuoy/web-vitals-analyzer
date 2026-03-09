@@ -97,6 +97,7 @@ const issueSchema = z.object({
   type: z.enum(["first_party", "third_party"]),
   description: z.string(),
   fix: z.string(),
+  code_example: z.string().nullable().optional(),
   impact_metric: z.string(),
   severity: severityEnum,
   difficulty: difficultyEnum,
@@ -131,6 +132,7 @@ const deviceReportSchema = z.object({
       inp_impact: severityEnum,
       recommendation: z.enum(["remove", "defer", "lazy_load", "keep"]),
       fix: z.string(),
+      code_example: z.string().nullable().optional(),
     }),
   ),
   priority_table: z.array(
@@ -166,6 +168,45 @@ const EMPTY_SOURCE_STATS: SourceStats = {
   images_without_dimensions: 0,
   third_party_domains: 0,
 };
+
+// Extract partial source stats from PSI diagnostics when HTML fetch fails
+function extractFallbackSourceStats(psi: PSIResult): SourceStats {
+  const stats = { ...EMPTY_SOURCE_STATS };
+
+  try {
+    // DOM nodes from dom-size diagnostic (displayValue: "1,483 elements")
+    const domSize = psi.diagnostics.find((d) => d.id === "dom-size");
+    if (domSize?.displayValue) {
+      const match = domSize.displayValue.match(/([\d,]+)\s*element/);
+      if (match) stats.dom_nodes = parseInt(match[1].replace(/,/g, ""), 10);
+    }
+
+    // Render-blocking resources count
+    const blocking = psi.opportunities.find(
+      (o) => o.id === "render-blocking-resources",
+    );
+    if (blocking?.displayValue) {
+      // displayValue is like "Potential savings of 1,230 ms"
+      // The existence of this opportunity means there are blocking resources
+      // We can't get exact count from displayValue, but we know there's at least 1
+      stats.render_blocking_scripts = 1;
+    }
+
+    // Third-party domains from third-party-summary diagnostic
+    const thirdParty = psi.diagnostics.find(
+      (d) => d.id === "third-party-summary",
+    );
+    if (thirdParty?.displayValue) {
+      // displayValue: "Third-party code blocked the main thread for 850 ms"
+      // We can't parse domain count, but if the diagnostic exists, there are 3P scripts
+      stats.third_party_domains = 1; // at least 1
+    }
+  } catch {
+    // Fallback parsing is best-effort
+  }
+
+  return stats;
+}
 
 // ----- Pipeline Entry Point -----
 
@@ -245,6 +286,14 @@ export async function runPipeline(
       }
     }
 
+    // Fallback: extract partial source stats from PSI data when HTML fetch/extraction failed
+    if (sourceStats === EMPTY_SOURCE_STATS) {
+      const fallbackPsi = mobilePsi ?? desktopPsi;
+      if (fallbackPsi) {
+        sourceStats = extractFallbackSourceStats(fallbackPsi);
+      }
+    }
+
     updateStage(analysisId, 3, "Analyzing", 40);
 
     // ===== STAGE 3: Deep Analysis (Opus, parallel mobile + desktop) =====
@@ -275,7 +324,17 @@ export async function runPipeline(
         signal: getAbortSignal(analysisId),
       });
 
-      return result.data;
+      const data = result.data;
+
+      // Safety net: patch performance_score if LLM returned 0 but PSI has a real score
+      if (
+        data.lab_metrics.performance_score === 0 &&
+        psiResult.overallScore > 0
+      ) {
+        data.lab_metrics.performance_score = Math.round(psiResult.overallScore);
+      }
+
+      return data;
     };
 
     const analysisPromises: Promise<DeviceReport | null>[] = [];

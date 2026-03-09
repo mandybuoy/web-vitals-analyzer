@@ -100,20 +100,25 @@ export default function SummaryCards({
         ))}
       </div>
 
-      {/* Secondary stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {secondaryStats.map((s) => (
-          <div
-            key={s.label}
-            className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
-          >
-            <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
-              {s.label}
-            </p>
-            <p className="text-sm text-vecton-dark/70 font-mono">{s.value}</p>
-          </div>
-        ))}
-      </div>
+      {/* Secondary stats (hidden when all data is zero) */}
+      {(sourceStats.dom_nodes > 0 ||
+        sourceStats.total_scripts > 0 ||
+        sourceStats.third_party_domains > 0 ||
+        sourceStats.html_size_kb > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {secondaryStats.map((s) => (
+            <div
+              key={s.label}
+              className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
+            >
+              <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+                {s.label}
+              </p>
+              <p className="text-sm text-vecton-dark/70 font-mono">{s.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

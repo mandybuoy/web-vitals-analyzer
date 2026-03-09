@@ -32,6 +32,9 @@ function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
+  // Migrate: drop old cost_logs with FK constraint (it was always failing, no data to lose)
+  db.exec("DROP TABLE IF EXISTS cost_logs");
+
   // Create tables
   db.exec(`
     CREATE TABLE IF NOT EXISTS analyses (
@@ -60,9 +63,10 @@ function getDb(): Database.Database {
       cost_input REAL NOT NULL,
       cost_output REAL NOT NULL,
       cost_total REAL NOT NULL,
-      latency_ms INTEGER NOT NULL,
-      FOREIGN KEY (analysis_id) REFERENCES analyses(id) ON DELETE CASCADE
+      latency_ms INTEGER NOT NULL
     );
+
+    CREATE INDEX IF NOT EXISTS idx_cost_logs_analysis ON cost_logs(analysis_id);
 
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
