@@ -83,7 +83,7 @@ const RETRYABLE_PATTERNS = [
   /FAILED_DOCUMENT_REQUEST/,
   /ERRORED_DOCUMENT_REQUEST/,
 ];
-const PSI_MAX_RETRIES = 4;
+const PSI_MAX_RETRIES = 2;
 const PSI_BASE_BACKOFF_MS = 3_000;
 const PSI_TIMEOUT_MS = 180_000; // 3 minutes — heavy sites need time
 

@@ -297,56 +297,119 @@ export async function runPipeline(
       },
     });
 
-    const [mobileResult, desktopResult, htmlExtractionResult] =
-      await Promise.allSettled([
-        fetchPSI(url, "mobile", psiApiKey, psiRetryHandler("mobile")),
+    // --- Pipeline-level PSI retry ---
+    // Heavy SPAs (e.g. piramalfinance.com) can fail with NO_FCP persistently.
+    // A cooldown lets Google rotate Lighthouse instances, improving success.
+    const PSI_STAGGER_MS = 5_000;
+    const PIPELINE_PSI_RETRIES = 2; // up to 3 total attempts
+    const PIPELINE_COOLDOWN_MS = 15_000;
+
+    let mobilePsi: PSIResult | null = null;
+    let desktopPsi: PSIResult | null = null;
+    let lastPsiError = "";
+
+    for (
+      let pipelineAttempt = 0;
+      pipelineAttempt <= PIPELINE_PSI_RETRIES;
+      pipelineAttempt++
+    ) {
+      checkAbort(analysisId);
+
+      if (pipelineAttempt > 0) {
+        console.log(
+          `[pipeline] Both PSI failed, cooling down ${PIPELINE_COOLDOWN_MS / 1000}s before attempt ${pipelineAttempt + 1}/3...`,
+        );
+        setDetail(analysisId, "Waiting 15s before retry...");
+        await new Promise((resolve) =>
+          setTimeout(resolve, PIPELINE_COOLDOWN_MS),
+        );
+        checkAbort(analysisId);
+        setDetail(
+          analysisId,
+          `Retrying analysis (attempt ${pipelineAttempt + 1}/3)...`,
+        );
+      }
+
+      const delayedMobile = new Promise<PSIResult>((resolve, reject) => {
+        setTimeout(() => {
+          fetchPSI(url, "mobile", psiApiKey, psiRetryHandler("mobile"))
+            .then(resolve)
+            .catch(reject);
+        }, PSI_STAGGER_MS);
+      });
+
+      const [desktopResult, mobileResult] = await Promise.allSettled([
         fetchPSI(url, "desktop", psiApiKey, psiRetryHandler("desktop")),
-        htmlAndExtractionPromise,
+        delayedMobile,
       ]);
 
-    // Clear retry detail after PSI completes
-    setDetail(analysisId, undefined);
+      setDetail(analysisId, undefined);
 
-    const mobilePsi =
-      mobileResult.status === "fulfilled" ? mobileResult.value : null;
-    const desktopPsi =
-      desktopResult.status === "fulfilled" ? desktopResult.value : null;
-    const htmlExtraction =
-      htmlExtractionResult.status === "fulfilled"
-        ? htmlExtractionResult.value
-        : null;
+      desktopPsi =
+        desktopResult.status === "fulfilled" ? desktopResult.value : null;
+      mobilePsi =
+        mobileResult.status === "fulfilled" ? mobileResult.value : null;
+
+      if (!desktopPsi && desktopResult.status === "rejected") {
+        lastPsiError = String(desktopResult.reason);
+      }
+      if (!mobilePsi && mobileResult.status === "rejected") {
+        lastPsiError = String(mobileResult.reason) || lastPsiError;
+      }
+
+      // If one device failed, retry it sequentially (cache warmed by the other)
+      if (!mobilePsi && desktopPsi) {
+        checkAbort(analysisId);
+        setDetail(analysisId, "Retrying mobile PSI...");
+        try {
+          mobilePsi = await fetchPSI(
+            url,
+            "mobile",
+            psiApiKey,
+            psiRetryHandler("mobile"),
+          );
+        } catch (err) {
+          console.warn("[pipeline] Mobile PSI sequential retry failed:", err);
+        }
+        setDetail(analysisId, undefined);
+      } else if (!desktopPsi && mobilePsi) {
+        checkAbort(analysisId);
+        setDetail(analysisId, "Retrying desktop PSI...");
+        try {
+          desktopPsi = await fetchPSI(
+            url,
+            "desktop",
+            psiApiKey,
+            psiRetryHandler("desktop"),
+          );
+        } catch (err) {
+          console.warn("[pipeline] Desktop PSI sequential retry failed:", err);
+        }
+        setDetail(analysisId, undefined);
+      }
+
+      // At least one device succeeded → continue pipeline
+      if (mobilePsi || desktopPsi) break;
+    }
 
     if (!mobilePsi && !desktopPsi) {
-      const mobileReason =
-        mobileResult.status === "rejected" ? String(mobileResult.reason) : "";
-      const desktopReason =
-        desktopResult.status === "rejected" ? String(desktopResult.reason) : "";
-      // Log full technical details server-side
-      console.error("[pipeline] Both PSI requests failed.", {
-        mobileReason,
-        desktopReason,
-      });
-      // Show client-friendly message
-      const friendly = friendlyPsiError(mobileReason || desktopReason);
+      const friendly = friendlyPsiError(lastPsiError);
       throw new Error(
         `Could not analyze this page. ${friendly} Please try again.`,
       );
     }
 
+    // Await HTML extraction (started in parallel, should be done by now)
+    const htmlExtraction = await htmlAndExtractionPromise;
+
     if (!mobilePsi) {
-      const reason =
-        mobileResult.status === "rejected" ? String(mobileResult.reason) : "";
-      console.warn("[pipeline] Mobile PSI failed:", reason);
       warnings.push(
-        `Mobile analysis unavailable — ${friendlyPsiError(reason)}`,
+        `Mobile analysis unavailable — ${friendlyPsiError(lastPsiError)}`,
       );
     }
     if (!desktopPsi) {
-      const reason =
-        desktopResult.status === "rejected" ? String(desktopResult.reason) : "";
-      console.warn("[pipeline] Desktop PSI failed:", reason);
       warnings.push(
-        `Desktop analysis unavailable — ${friendlyPsiError(reason)}`,
+        `Desktop analysis unavailable — ${friendlyPsiError(lastPsiError)}`,
       );
     }
     if (!htmlExtraction)
