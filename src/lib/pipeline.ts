@@ -27,8 +27,10 @@ import { buildExtractionPrompt, buildTier2Prompt } from "./prompts";
 import { saveAnalysis } from "./db";
 import {
   updateStage,
+  setDetail,
   setError,
   setComplete,
+  setInMemoryReport,
   getAbortSignal,
 } from "./pipeline-store";
 
@@ -154,6 +156,22 @@ const deviceReportSchema = z.object({
   ),
 });
 
+// ----- Friendly error messages -----
+
+function friendlyPsiError(raw: string): string {
+  if (/NO_FCP|NO_LCP/.test(raw))
+    return "The page took too long to render content. This is a known issue with heavy single-page apps.";
+  if (/FAILED_DOCUMENT_REQUEST|ERRORED_DOCUMENT_REQUEST/.test(raw))
+    return "Google could not load this page. The site may be blocking automated requests.";
+  if (/timeout|timed out|aborted/i.test(raw))
+    return "The request timed out. The site may be too slow or temporarily unavailable.";
+  if (/429/.test(raw))
+    return "Google rate-limited our requests. Please try again in a minute.";
+  if (/5\d{2}/.test(raw))
+    return "Google's analysis service had a temporary error. Please try again.";
+  return "Google PageSpeed analysis could not complete for this page.";
+}
+
 // ----- Check abort -----
 
 function checkAbort(analysisId: string): void {
@@ -217,10 +235,16 @@ function extractFallbackSourceStats(psi: PSIResult): SourceStats {
 
 // ----- Pipeline Entry Point -----
 
+export interface PipelineOptions {
+  psiOnly?: boolean;
+}
+
 export async function runPipeline(
   analysisId: string,
   url: string,
+  options?: PipelineOptions,
 ): Promise<void> {
+  const psiOnly = options?.psiOnly ?? false;
   const warnings: string[] = [];
 
   try {
@@ -259,12 +283,29 @@ export async function runPipeline(
         return null;
       });
 
+    const psiRetryHandler = (device: string) => ({
+      onRetry: (attempt: number, max: number, reason: string) => {
+        const short = /NO_FCP|NO_LCP/.test(reason)
+          ? "page render failed"
+          : /timeout|abort/i.test(reason)
+            ? "timed out"
+            : "error";
+        setDetail(
+          analysisId,
+          `Retrying ${device} PSI (${attempt}/${max}) — ${short}`,
+        );
+      },
+    });
+
     const [mobileResult, desktopResult, htmlExtractionResult] =
       await Promise.allSettled([
-        fetchPSI(url, "mobile", psiApiKey),
-        fetchPSI(url, "desktop", psiApiKey),
+        fetchPSI(url, "mobile", psiApiKey, psiRetryHandler("mobile")),
+        fetchPSI(url, "desktop", psiApiKey, psiRetryHandler("desktop")),
         htmlAndExtractionPromise,
       ]);
+
+    // Clear retry detail after PSI completes
+    setDetail(analysisId, undefined);
 
     const mobilePsi =
       mobileResult.status === "fulfilled" ? mobileResult.value : null;
@@ -276,15 +317,38 @@ export async function runPipeline(
         : null;
 
     if (!mobilePsi && !desktopPsi) {
+      const mobileReason =
+        mobileResult.status === "rejected" ? String(mobileResult.reason) : "";
+      const desktopReason =
+        desktopResult.status === "rejected" ? String(desktopResult.reason) : "";
+      // Log full technical details server-side
+      console.error("[pipeline] Both PSI requests failed.", {
+        mobileReason,
+        desktopReason,
+      });
+      // Show client-friendly message
+      const friendly = friendlyPsiError(mobileReason || desktopReason);
       throw new Error(
-        "Both mobile and desktop PSI requests failed. " +
-          `Mobile: ${mobileResult.status === "rejected" ? mobileResult.reason : "N/A"}. ` +
-          `Desktop: ${desktopResult.status === "rejected" ? desktopResult.reason : "N/A"}.`,
+        `Could not analyze this page. ${friendly} Please try again.`,
       );
     }
 
-    if (!mobilePsi) warnings.push("Mobile PSI analysis failed");
-    if (!desktopPsi) warnings.push("Desktop PSI analysis failed");
+    if (!mobilePsi) {
+      const reason =
+        mobileResult.status === "rejected" ? String(mobileResult.reason) : "";
+      console.warn("[pipeline] Mobile PSI failed:", reason);
+      warnings.push(
+        `Mobile analysis unavailable — ${friendlyPsiError(reason)}`,
+      );
+    }
+    if (!desktopPsi) {
+      const reason =
+        desktopResult.status === "rejected" ? String(desktopResult.reason) : "";
+      console.warn("[pipeline] Desktop PSI failed:", reason);
+      warnings.push(
+        `Desktop analysis unavailable — ${friendlyPsiError(reason)}`,
+      );
+    }
     if (!htmlExtraction)
       warnings.push("HTML fetch/extraction failed — using PSI data only");
 
@@ -306,6 +370,26 @@ export async function runPipeline(
       if (fallbackPsi) {
         sourceStats = extractFallbackSourceStats(fallbackPsi);
       }
+    }
+
+    // ===== PSI-ONLY: early exit after stage 2 =====
+    if (psiOnly) {
+      const report: AnalysisReport = {
+        id: analysisId,
+        url,
+        timestamp: new Date().toISOString(),
+        source_stats: sourceStats,
+        mobile: null,
+        desktop: null,
+        warnings,
+        psi_only: true,
+        mobile_psi: mobilePsi ?? undefined,
+        desktop_psi: desktopPsi ?? undefined,
+      };
+
+      setInMemoryReport(analysisId, report);
+      setComplete(analysisId);
+      return;
     }
 
     updateStage(analysisId, 3, "Analyzing", 40);

@@ -6,6 +6,7 @@ import { useElapsedTime } from "@/hooks/useElapsedTime";
 interface ProgressBarProps {
   status: PipelineStatus;
   onCancel: () => void;
+  psiOnly?: boolean;
 }
 
 const STAGES = [
@@ -13,6 +14,11 @@ const STAGES = [
   { num: 2, name: "Extracting", desc: "HTML signals" },
   { num: 3, name: "Analyzing", desc: "Deep analysis" },
   { num: 4, name: "Generating", desc: "Report" },
+] as const;
+
+const PSI_STAGES = [
+  { num: 1, name: "Collecting", desc: "PSI + HTML" },
+  { num: 2, name: "Processing", desc: "Extracting signals" },
 ] as const;
 
 function StageStep({
@@ -87,15 +93,20 @@ function StageStep({
   );
 }
 
-export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
+export default function ProgressBar({
+  status,
+  onCancel,
+  psiOnly,
+}: ProgressBarProps) {
   const currentStage = status.stage;
+  const stages = psiOnly ? PSI_STAGES : STAGES;
 
   return (
     <div className="animate-fade-up">
       <div className="p-6 rounded-lg bg-white/50 border border-vecton-dark/10">
         {/* Horizontal steps (desktop) */}
         <div className="hidden sm:flex items-center justify-between gap-4 mb-4">
-          {STAGES.map((stage, i) => (
+          {stages.map((stage, i) => (
             <div key={stage.num} className="flex items-center gap-4 flex-1">
               <StageStep
                 num={stage.num}
@@ -110,7 +121,7 @@ export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
                 }
                 timestamps={status.stage_timestamps}
               />
-              {i < STAGES.length - 1 && (
+              {i < stages.length - 1 && (
                 <div
                   className={`flex-1 h-[1px] ${
                     currentStage > stage.num
@@ -125,7 +136,7 @@ export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
 
         {/* Vertical steps (mobile) */}
         <div className="sm:hidden space-y-3 mb-4">
-          {STAGES.map((stage) => (
+          {stages.map((stage) => (
             <StageStep
               key={stage.num}
               num={stage.num}
@@ -150,6 +161,13 @@ export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
             style={{ width: `${status.progress_pct}%` }}
           />
         </div>
+
+        {/* Detail / retry info */}
+        {status.detail && (
+          <p className="text-[10px] text-vecton-orange/70 font-mono mb-2 animate-pulse">
+            {status.detail}
+          </p>
+        )}
 
         {/* Cancel button */}
         <div className="flex justify-between items-center">

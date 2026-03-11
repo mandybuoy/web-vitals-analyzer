@@ -263,6 +263,10 @@ export interface AnalysisReport {
   mobile: DeviceReport | null;
   desktop: DeviceReport | null;
   warnings: string[];
+  // PSI-only mode fields (stages 1-2 only, no LLM analysis)
+  psi_only?: boolean;
+  mobile_psi?: PSIResult;
+  desktop_psi?: PSIResult;
 }
 
 // ----- Pipeline Status -----
@@ -290,6 +294,7 @@ export interface PipelineStatus {
   stage: PipelineStage;
   stage_name: PipelineStageName;
   progress_pct: number;
+  detail?: string; // e.g. "Retrying mobile PSI (2/4)..."
   error?: string;
   stage_timestamps: StageTimestamps;
 }

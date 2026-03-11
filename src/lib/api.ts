@@ -20,11 +20,12 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 // Start a new analysis — returns analysis_id
 export async function startAnalysis(
   url: string,
+  psiOnly?: boolean,
 ): Promise<{ analysis_id: string }> {
   const response = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, ...(psiOnly && { psi_only: true }) }),
   });
 
   if (response.status === 429) {

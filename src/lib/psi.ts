@@ -83,14 +83,19 @@ const RETRYABLE_PATTERNS = [
   /FAILED_DOCUMENT_REQUEST/,
   /ERRORED_DOCUMENT_REQUEST/,
 ];
-const PSI_MAX_RETRIES = 2;
-const PSI_BASE_BACKOFF_MS = 5_000;
-const PSI_TIMEOUT_MS = 45_000;
+const PSI_MAX_RETRIES = 4;
+const PSI_BASE_BACKOFF_MS = 3_000;
+const PSI_TIMEOUT_MS = 180_000; // 3 minutes — heavy sites need time
+
+export interface PSIFetchOptions {
+  onRetry?: (attempt: number, maxRetries: number, reason: string) => void;
+}
 
 export async function fetchPSI(
   url: string,
   strategy: "mobile" | "desktop",
   apiKey: string,
+  options?: PSIFetchOptions,
 ): Promise<PSIResult> {
   const apiUrl = new URL(
     "https://www.googleapis.com/pagespeedonline/v5/runPagespeed",
@@ -105,15 +110,30 @@ export async function fetchPSI(
   for (let attempt = 0; attempt <= PSI_MAX_RETRIES; attempt++) {
     if (attempt > 0) {
       const backoffMs = PSI_BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+      const reason = lastError?.message ?? "unknown error";
       console.log(
         `[psi] Retry ${attempt}/${PSI_MAX_RETRIES} for ${strategy} after ${backoffMs / 1000}s...`,
       );
+      options?.onRetry?.(attempt, PSI_MAX_RETRIES, reason);
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
 
-    const response = await fetch(apiUrl.toString(), {
-      signal: AbortSignal.timeout(PSI_TIMEOUT_MS),
-    });
+    let response: Response;
+    try {
+      response = await fetch(apiUrl.toString(), {
+        signal: AbortSignal.timeout(PSI_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Retry on timeout or network errors
+      if (attempt < PSI_MAX_RETRIES) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        console.warn(
+          `[psi] ${strategy} fetch failed (attempt ${attempt + 1}): ${lastError.message}`,
+        );
+        continue;
+      }
+      throw err;
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));

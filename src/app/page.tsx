@@ -1,18 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useHistory } from "@/hooks/useHistory";
 import ReportView from "@/components/report/ReportView";
+import PSIReportView from "@/components/report/PSIReportView";
 import ProgressBar from "@/components/progress/ProgressBar";
 import HistoryList from "@/components/history/HistoryList";
 import SettingsPanel from "@/components/settings/SettingsPanel";
+
+function usePsiOnlyMode() {
+  const [psiOnly, setPsiOnly] = useState(true);
+
+  // Load from localStorage on mount (default: true)
+  useEffect(() => {
+    const stored = localStorage.getItem("vitalscan_psi_only");
+    setPsiOnly(stored === null ? true : stored === "true");
+  }, []);
+
+  const toggle = useCallback(() => {
+    setPsiOnly((prev) => {
+      const next = !prev;
+      localStorage.setItem("vitalscan_psi_only", String(next));
+      return next;
+    });
+  }, []);
+
+  return { psiOnly, toggle };
+}
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const analysis = useAnalysis();
   const history = useHistory();
+  const { psiOnly, toggle: togglePsiOnly } = usePsiOnlyMode();
+
+  // Hidden keyboard shortcut: Ctrl+Shift+P (Cmd+Shift+P on Mac)
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        togglePsiOnly();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [togglePsiOnly]);
 
   const handleAnalyze = async () => {
     if (!url.trim()) return;
@@ -22,9 +56,11 @@ export default function Home() {
       targetUrl = "https://" + targetUrl;
     }
 
-    await analysis.start(targetUrl);
+    await analysis.start(targetUrl, psiOnly);
     // Refresh history after starting (it will show when done)
-    setTimeout(() => history.refresh(), 2000);
+    if (!psiOnly) {
+      setTimeout(() => history.refresh(), 2000);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -64,24 +100,36 @@ export default function Home() {
             root-cause analysis and prioritized fixes.
           </p>
 
-          {/* Settings gear */}
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="absolute top-6 right-6 text-vecton-dark/30 hover:text-vecton-dark/60 transition-colors"
-            title="Settings"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
+          {/* Settings gear (hidden in PSI-only mode) */}
+          {!psiOnly && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="absolute top-6 right-6 text-vecton-dark/30 hover:text-vecton-dark/60 transition-colors"
+              title="Settings"
             >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
-            </svg>
-          </button>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
+              </svg>
+            </button>
+          )}
+
+          {/* PSI-only mode indicator */}
+          {psiOnly && (
+            <div className="absolute top-6 right-6">
+              <div
+                className="w-2 h-2 rounded-full bg-vecton-orange/40"
+                title="PSI-only mode"
+              />
+            </div>
+          )}
         </div>
 
         {/* Search input */}
@@ -156,7 +204,11 @@ export default function Home() {
         {/* Progress */}
         {isRunning && analysis.status && (
           <div className="max-w-2xl mx-auto mb-8">
-            <ProgressBar status={analysis.status} onCancel={analysis.cancel} />
+            <ProgressBar
+              status={analysis.status}
+              onCancel={analysis.cancel}
+              psiOnly={psiOnly}
+            />
           </div>
         )}
 
@@ -219,15 +271,23 @@ export default function Home() {
         )}
 
         {/* Report */}
-        {isDone && analysis.report && <ReportView report={analysis.report} />}
+        {isDone &&
+          analysis.report &&
+          (analysis.report.psi_only ? (
+            <PSIReportView report={analysis.report} />
+          ) : (
+            <ReportView report={analysis.report} />
+          ))}
 
-        {/* History (idle only) */}
-        {analysis.state === "idle" && history.history.length > 0 && (
-          <HistoryList
-            entries={history.history}
-            onSelect={handleHistorySelect}
-          />
-        )}
+        {/* History (idle only, hidden in PSI-only mode) */}
+        {!psiOnly &&
+          analysis.state === "idle" &&
+          history.history.length > 0 && (
+            <HistoryList
+              entries={history.history}
+              onSelect={handleHistorySelect}
+            />
+          )}
 
         {/* Footer */}
         <footer className="text-center mt-16 pb-8">

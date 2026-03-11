@@ -2,7 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getAnalysis } from "@/lib/db";
-import { getPipelineStatus } from "@/lib/pipeline-store";
+import { getPipelineStatus, getInMemoryReport } from "@/lib/pipeline-store";
 
 export async function GET(
   _request: NextRequest,
@@ -17,6 +17,12 @@ export async function GET(
       { message: "Analysis still in progress" },
       { status: 202 },
     );
+  }
+
+  // Check in-memory report first (PSI-only mode stores reports here)
+  const inMemoryReport = getInMemoryReport(id);
+  if (inMemoryReport) {
+    return NextResponse.json(inMemoryReport);
   }
 
   const report = getAnalysis(id);

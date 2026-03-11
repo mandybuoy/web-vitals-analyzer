@@ -13,7 +13,7 @@ export interface UseAnalysisReturn {
   status: PipelineStatus | null;
   report: AnalysisReport | null;
   error: string | null;
-  start: (url: string) => Promise<void>;
+  start: (url: string, psiOnly?: boolean) => Promise<void>;
   cancel: () => Promise<void>;
   loadReport: (id: string) => Promise<void>;
   reset: () => void;
@@ -102,7 +102,7 @@ export function useAnalysis(): UseAnalysisReturn {
   });
 
   const start = useCallback(
-    async (url: string) => {
+    async (url: string, psiOnly?: boolean) => {
       // Cancel any existing analysis to avoid 429
       if (analysisId) {
         try {
@@ -119,7 +119,7 @@ export function useAnalysis(): UseAnalysisReturn {
       setState("running");
 
       try {
-        const { analysis_id } = await api.startAnalysis(url);
+        const { analysis_id } = await api.startAnalysis(url, psiOnly);
         setAnalysisId(analysis_id);
         lastProgressRef.current = { pct: 0, time: Date.now() };
         setPolling(true);

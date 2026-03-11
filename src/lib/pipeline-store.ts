@@ -1,11 +1,12 @@
 // In-memory pipeline state store (survives Next.js hot-reloads via globalThis)
 
-import type { PipelineStatus, StageTimestamps } from "./types";
+import type { PipelineStatus, StageTimestamps, AnalysisReport } from "./types";
 
 export interface PipelineState {
   status: PipelineStatus;
   abortController: AbortController;
   createdAt: number;
+  report?: AnalysisReport; // In-memory report for PSI-only mode (not saved to DB)
 }
 
 // globalThis pattern to survive hot-reloads
@@ -125,10 +126,34 @@ export function updateStage(
   state.status.progress_pct = progressPct;
 }
 
+export function setDetail(
+  analysisId: string,
+  detail: string | undefined,
+): void {
+  const state = store.get(analysisId);
+  if (!state) return;
+  state.status.detail = detail;
+}
+
 export function setError(analysisId: string, error: string): void {
   const state = store.get(analysisId);
   if (!state) return;
   state.status.error = error;
+}
+
+export function setInMemoryReport(
+  analysisId: string,
+  report: AnalysisReport,
+): void {
+  const state = store.get(analysisId);
+  if (!state) return;
+  state.report = report;
+}
+
+export function getInMemoryReport(
+  analysisId: string,
+): AnalysisReport | undefined {
+  return store.get(analysisId)?.report;
 }
 
 export function setComplete(analysisId: string): void {

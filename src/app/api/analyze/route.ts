@@ -12,7 +12,7 @@ import { runPipeline } from "@/lib/pipeline";
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, psi_only } = await request.json();
 
     if (!url || typeof url !== "string") {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     createPipeline(analysisId);
 
     // Fire-and-forget: don't await the pipeline
-    runPipeline(analysisId, url).catch((err) => {
+    runPipeline(analysisId, url, { psiOnly: !!psi_only }).catch((err) => {
       console.error("[analyze] Pipeline error:", err);
     });
 
