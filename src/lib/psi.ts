@@ -76,6 +76,16 @@ function extractMetric(
   };
 }
 
+// Transient PSI errors worth retrying (NO_FCP, rate limits, server errors)
+const RETRYABLE_PATTERNS = [
+  /NO_FCP/,
+  /NO_LCP/,
+  /FAILED_DOCUMENT_REQUEST/,
+  /ERRORED_DOCUMENT_REQUEST/,
+];
+const PSI_MAX_RETRIES = 2;
+const PSI_BASE_BACKOFF_MS = 5_000;
+
 export async function fetchPSI(
   url: string,
   strategy: "mobile" | "desktop",
@@ -89,186 +99,216 @@ export async function fetchPSI(
   apiUrl.searchParams.set("strategy", strategy);
   apiUrl.searchParams.set("category", "performance");
 
-  const response = await fetch(apiUrl.toString());
+  let lastError: Error | null = null;
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(
-      `PSI API error (${response.status}): ${error.error?.message || response.statusText}`,
-    );
-  }
+  for (let attempt = 0; attempt <= PSI_MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      const backoffMs = PSI_BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
+      console.log(
+        `[psi] Retry ${attempt}/${PSI_MAX_RETRIES} for ${strategy} after ${backoffMs / 1000}s...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+    }
 
-  const data = await response.json();
-  const lighthouse = data.lighthouseResult;
-  const audits = lighthouse?.audits || {};
+    const response = await fetch(apiUrl.toString());
 
-  // Extract field data (CrUX - real user data)
-  const loadingExperience = data.loadingExperience;
-  let fieldData: FieldData | undefined;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      const message = error.error?.message || response.statusText;
 
-  if (loadingExperience && loadingExperience.metrics) {
-    const extractFieldMetric = (metricData: any): FieldMetric | undefined => {
-      if (!metricData) return undefined;
-      return {
-        percentile: metricData.percentile || 0,
-        category: metricData.category || "AVERAGE",
-        distributions: metricData.distributions || [],
+      // Retry on transient errors (429 rate limit, 5xx server errors, known Lighthouse failures)
+      const isRetryable =
+        response.status === 429 ||
+        response.status >= 500 ||
+        RETRYABLE_PATTERNS.some((p) => p.test(message));
+
+      if (isRetryable && attempt < PSI_MAX_RETRIES) {
+        lastError = new Error(`PSI API error (${response.status}): ${message}`);
+        continue;
+      }
+
+      throw new Error(`PSI API error (${response.status}): ${message}`);
+    }
+
+    // Success — break out of retry loop
+    lastError = null;
+
+    const data = await response.json();
+    const lighthouse = data.lighthouseResult;
+    const audits = lighthouse?.audits || {};
+
+    // Extract field data (CrUX - real user data)
+    const loadingExperience = data.loadingExperience;
+    let fieldData: FieldData | undefined;
+
+    if (loadingExperience && loadingExperience.metrics) {
+      const extractFieldMetric = (metricData: any): FieldMetric | undefined => {
+        if (!metricData) return undefined;
+        return {
+          percentile: metricData.percentile || 0,
+          category: metricData.category || "AVERAGE",
+          distributions: metricData.distributions || [],
+        };
       };
+
+      fieldData = {
+        lcp: extractFieldMetric(
+          loadingExperience.metrics.LARGEST_CONTENTFUL_PAINT_MS,
+        ),
+        inp: extractFieldMetric(
+          loadingExperience.metrics.INTERACTION_TO_NEXT_PAINT,
+        ),
+        cls: extractFieldMetric(
+          loadingExperience.metrics.CUMULATIVE_LAYOUT_SHIFT_SCORE,
+        ),
+        fcp: extractFieldMetric(
+          loadingExperience.metrics.FIRST_CONTENTFUL_PAINT_MS,
+        ),
+        fid: extractFieldMetric(loadingExperience.metrics.FIRST_INPUT_DELAY_MS),
+        ttfb: extractFieldMetric(
+          loadingExperience.metrics.EXPERIMENTAL_TIME_TO_FIRST_BYTE,
+        ),
+      };
+    }
+
+    // Extract metrics
+    const metrics = {
+      lcp: extractMetric(
+        audits,
+        "largest-contentful-paint",
+        "LCP",
+        "Largest Contentful Paint",
+        "lcp",
+        "Time until the largest content element is visible",
+      ),
+      inp: extractMetric(
+        audits,
+        "interaction-to-next-paint",
+        "INP",
+        "Interaction to Next Paint",
+        "inp",
+        "Responsiveness to user interactions",
+      ),
+      cls: {
+        ...extractMetric(
+          audits,
+          "cumulative-layout-shift",
+          "CLS",
+          "Cumulative Layout Shift",
+          "cls",
+          "Visual stability — how much the layout shifts during loading",
+        ),
+        displayValue:
+          audits["cumulative-layout-shift"]?.displayValue ||
+          (audits["cumulative-layout-shift"]?.numericValue?.toFixed(3) ??
+            "N/A"),
+      },
+      fcp: extractMetric(
+        audits,
+        "first-contentful-paint",
+        "FCP",
+        "First Contentful Paint",
+        "fcp",
+        "Time until the first content is painted on screen",
+      ),
+      tbt: extractMetric(
+        audits,
+        "total-blocking-time",
+        "TBT",
+        "Total Blocking Time",
+        "tbt",
+        "Total time the main thread was blocked",
+      ),
+      si: extractMetric(
+        audits,
+        "speed-index",
+        "SI",
+        "Speed Index",
+        "si",
+        "How quickly content is visually displayed during load",
+      ),
+      ttfb: extractMetric(
+        audits,
+        "server-response-time",
+        "TTFB",
+        "Time to First Byte",
+        "ttfb",
+        "Server response time for the main document",
+      ),
     };
 
-    fieldData = {
-      lcp: extractFieldMetric(
-        loadingExperience.metrics.LARGEST_CONTENTFUL_PAINT_MS,
-      ),
-      inp: extractFieldMetric(
-        loadingExperience.metrics.INTERACTION_TO_NEXT_PAINT,
-      ),
-      cls: extractFieldMetric(
-        loadingExperience.metrics.CUMULATIVE_LAYOUT_SHIFT_SCORE,
-      ),
-      fcp: extractFieldMetric(
-        loadingExperience.metrics.FIRST_CONTENTFUL_PAINT_MS,
-      ),
-      fid: extractFieldMetric(loadingExperience.metrics.FIRST_INPUT_DELAY_MS),
-      ttfb: extractFieldMetric(
-        loadingExperience.metrics.EXPERIMENTAL_TIME_TO_FIRST_BYTE,
-      ),
+    // Extract diagnostics
+    const diagnosticIds = [
+      "dom-size",
+      "mainthread-work-breakdown",
+      "bootup-time",
+      "font-display",
+      "third-party-summary",
+      "long-tasks",
+      "layout-shifts",
+      "non-composited-animations",
+      "unsized-images",
+      "viewport",
+    ];
+
+    const diagnostics: DiagnosticItem[] = diagnosticIds
+      .map((id) => audits[id])
+      .filter(Boolean)
+      .filter((audit) => audit.score !== null && audit.score < 1)
+      .map((audit) => ({
+        id: audit.id,
+        title: audit.title,
+        description: audit.description,
+        score: audit.score,
+        displayValue: audit.displayValue,
+      }));
+
+    // Extract opportunities
+    const opportunityIds = [
+      "render-blocking-resources",
+      "unused-css-rules",
+      "unused-javascript",
+      "modern-image-formats",
+      "offscreen-images",
+      "unminified-css",
+      "unminified-javascript",
+      "efficient-animated-content",
+      "duplicated-javascript",
+      "legacy-javascript",
+      "uses-optimized-images",
+      "uses-responsive-images",
+      "uses-text-compression",
+      "server-response-time",
+      "redirects",
+      "preload-lcp-element",
+      "uses-rel-preconnect",
+    ];
+
+    const opportunities: OpportunityItem[] = opportunityIds
+      .map((id) => audits[id])
+      .filter(Boolean)
+      .filter((audit) => audit.score !== null && audit.score < 1)
+      .map((audit) => ({
+        id: audit.id,
+        title: audit.title,
+        description: audit.description,
+        score: audit.score,
+        savings: audit.displayValue,
+        displayValue: audit.displayValue,
+      }));
+
+    return {
+      strategy,
+      url: data.id || url,
+      fetchTime: lighthouse?.fetchTime || new Date().toISOString(),
+      overallScore: (lighthouse?.categories?.performance?.score ?? 0) * 100,
+      metrics,
+      fieldData,
+      diagnostics,
+      opportunities,
     };
   }
 
-  // Extract metrics
-  const metrics = {
-    lcp: extractMetric(
-      audits,
-      "largest-contentful-paint",
-      "LCP",
-      "Largest Contentful Paint",
-      "lcp",
-      "Time until the largest content element is visible",
-    ),
-    inp: extractMetric(
-      audits,
-      "interaction-to-next-paint",
-      "INP",
-      "Interaction to Next Paint",
-      "inp",
-      "Responsiveness to user interactions",
-    ),
-    cls: {
-      ...extractMetric(
-        audits,
-        "cumulative-layout-shift",
-        "CLS",
-        "Cumulative Layout Shift",
-        "cls",
-        "Visual stability — how much the layout shifts during loading",
-      ),
-      displayValue:
-        audits["cumulative-layout-shift"]?.displayValue ||
-        (audits["cumulative-layout-shift"]?.numericValue?.toFixed(3) ?? "N/A"),
-    },
-    fcp: extractMetric(
-      audits,
-      "first-contentful-paint",
-      "FCP",
-      "First Contentful Paint",
-      "fcp",
-      "Time until the first content is painted on screen",
-    ),
-    tbt: extractMetric(
-      audits,
-      "total-blocking-time",
-      "TBT",
-      "Total Blocking Time",
-      "tbt",
-      "Total time the main thread was blocked",
-    ),
-    si: extractMetric(
-      audits,
-      "speed-index",
-      "SI",
-      "Speed Index",
-      "si",
-      "How quickly content is visually displayed during load",
-    ),
-    ttfb: extractMetric(
-      audits,
-      "server-response-time",
-      "TTFB",
-      "Time to First Byte",
-      "ttfb",
-      "Server response time for the main document",
-    ),
-  };
-
-  // Extract diagnostics
-  const diagnosticIds = [
-    "dom-size",
-    "mainthread-work-breakdown",
-    "bootup-time",
-    "font-display",
-    "third-party-summary",
-    "long-tasks",
-    "layout-shifts",
-    "non-composited-animations",
-    "unsized-images",
-    "viewport",
-  ];
-
-  const diagnostics: DiagnosticItem[] = diagnosticIds
-    .map((id) => audits[id])
-    .filter(Boolean)
-    .filter((audit) => audit.score !== null && audit.score < 1)
-    .map((audit) => ({
-      id: audit.id,
-      title: audit.title,
-      description: audit.description,
-      score: audit.score,
-      displayValue: audit.displayValue,
-    }));
-
-  // Extract opportunities
-  const opportunityIds = [
-    "render-blocking-resources",
-    "unused-css-rules",
-    "unused-javascript",
-    "modern-image-formats",
-    "offscreen-images",
-    "unminified-css",
-    "unminified-javascript",
-    "efficient-animated-content",
-    "duplicated-javascript",
-    "legacy-javascript",
-    "uses-optimized-images",
-    "uses-responsive-images",
-    "uses-text-compression",
-    "server-response-time",
-    "redirects",
-    "preload-lcp-element",
-    "uses-rel-preconnect",
-  ];
-
-  const opportunities: OpportunityItem[] = opportunityIds
-    .map((id) => audits[id])
-    .filter(Boolean)
-    .filter((audit) => audit.score !== null && audit.score < 1)
-    .map((audit) => ({
-      id: audit.id,
-      title: audit.title,
-      description: audit.description,
-      score: audit.score,
-      savings: audit.displayValue,
-      displayValue: audit.displayValue,
-    }));
-
-  return {
-    strategy,
-    url: data.id || url,
-    fetchTime: lighthouse?.fetchTime || new Date().toISOString(),
-    overallScore: (lighthouse?.categories?.performance?.score ?? 0) * 100,
-    metrics,
-    fieldData,
-    diagnostics,
-    opportunities,
-  };
+  // All retries exhausted
+  throw lastError ?? new Error("PSI fetch failed after all retries");
 }

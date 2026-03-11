@@ -102,6 +102,12 @@ export async function callOpenRouter<T>(options: {
     throw new Error("OPENROUTER_API_KEY not set. Add it to your .env file.");
   }
 
+  // Per-tier request timeout: 2 min for extraction (Sonnet), 5 min for intelligence (Opus)
+  const timeoutMs = tier === "extraction" ? 120_000 : 300_000;
+  const fetchSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+    : AbortSignal.timeout(timeoutMs);
+
   const messages: OpenRouterMessage[] = [
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
@@ -142,9 +148,14 @@ export async function callOpenRouter<T>(options: {
           "X-Title": "VitalScan",
         },
         body: JSON.stringify(requestBody),
-        signal,
+        signal: fetchSignal,
       });
     } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        throw new Error(
+          `OpenRouter request timed out after ${timeoutMs / 1000}s`,
+        );
+      }
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error("Analysis cancelled");
       }
@@ -165,7 +176,7 @@ export async function callOpenRouter<T>(options: {
             "X-Title": "VitalScan",
           },
           body: JSON.stringify(requestBody),
-          signal,
+          signal: fetchSignal,
         },
       );
       response = retryResponse;

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:e2e": "node scripts/e2e-test.mjs",
+    "test:e2e:psi": "node scripts/e2e-test.mjs --psi-only"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
