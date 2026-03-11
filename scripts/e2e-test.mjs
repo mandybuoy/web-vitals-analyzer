@@ -148,7 +148,7 @@ async function checkServer() {
       `  Intelligence model: ${data.intelligence_model || "(default)"}`,
     );
     console.log(`  Google PSI key:    ${data.google_key_status}`);
-    console.log(`  OpenRouter key:    ${data.openrouter_key_status}`);
+    console.log(`  Anthropic key:     ${data.openrouter_key_status}`);
 
     if (!data.google_key_status || data.google_key_status === "Not set") {
       console.error("\nERROR: GOOGLE_PSI_API_KEY not configured");

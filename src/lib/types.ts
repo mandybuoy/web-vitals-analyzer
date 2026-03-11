@@ -101,6 +101,7 @@ export type Difficulty = "easy" | "moderate" | "hard";
 export type IssueType = "first_party" | "third_party";
 export type MetricName = "INP" | "LCP" | "CLS";
 export type ThirdPartyAction = "remove" | "defer" | "lazy_load" | "keep";
+export type EvidenceBasis = "measured" | "inferred" | "best_practice";
 
 // ----- Issue (used in INP/LCP/CLS analysis tabs) -----
 
@@ -113,6 +114,10 @@ export interface Issue {
   impact_metric: string;
   severity: Severity;
   difficulty: Difficulty;
+  is_generic_example?: boolean;
+  is_observation?: boolean;
+  trade_off?: string | null;
+  evidence_basis?: EvidenceBasis;
 }
 
 // ----- Third-Party Matrix Entry -----
@@ -128,6 +133,7 @@ export interface ThirdPartyEntry {
   recommendation: ThirdPartyAction;
   fix: string;
   code_example?: string | null;
+  trade_off?: string | null;
 }
 
 // ----- Priority Fix -----
@@ -139,6 +145,7 @@ export interface PriorityFix {
   severity: Severity;
   difficulty: Difficulty;
   estimated_improvement: string;
+  evidence_basis?: EvidenceBasis;
 }
 
 // ----- Source Stats (device-independent, derived from ExtractedSignals) -----

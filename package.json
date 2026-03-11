@@ -11,6 +11,7 @@
     "test:e2e:psi": "node scripts/e2e-test.mjs --psi-only"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "better-sqlite3": "^12.6.2",
     "lucide-react": "^0.400.0",
     "next": "^16.1.6",

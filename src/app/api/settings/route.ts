@@ -6,7 +6,7 @@ import { getAllSettings, setSetting } from "@/lib/db";
 import { getCostSummary } from "@/lib/db";
 import {
   getGoogleApiKey,
-  getOpenRouterApiKey,
+  getAnthropicApiKey,
   maskApiKey,
   AVAILABLE_MODELS,
 } from "@/lib/config";
@@ -21,7 +21,7 @@ export async function GET() {
       extraction_model: settings.extraction_model ?? "",
       intelligence_model: settings.intelligence_model ?? "",
       google_key_status: maskApiKey(getGoogleApiKey()),
-      openrouter_key_status: maskApiKey(getOpenRouterApiKey()),
+      openrouter_key_status: maskApiKey(getAnthropicApiKey()),
       available_models: AVAILABLE_MODELS,
       costs,
     };

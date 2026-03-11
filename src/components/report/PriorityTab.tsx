@@ -9,6 +9,12 @@ interface PriorityTabProps {
   fixes: PriorityFix[];
 }
 
+const EVIDENCE_STYLES: Record<string, string> = {
+  measured: "bg-[#0cce6b]/10 text-[#0cce6b]",
+  inferred: "bg-[#ffa400]/10 text-[#ffa400]",
+  best_practice: "bg-vecton-dark/5 text-vecton-dark/50",
+};
+
 export default function PriorityTab({ fixes }: PriorityTabProps) {
   if (fixes.length === 0) {
     return (
@@ -41,6 +47,9 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
                 Difficulty
               </th>
               <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+                Evidence
+              </th>
+              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
                 Est. Improvement
               </th>
             </tr>
@@ -64,6 +73,17 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
                 <td className="p-3">
                   <DifficultyPill difficulty={fix.difficulty} />
                 </td>
+                <td className="p-3">
+                  {fix.evidence_basis && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                        EVIDENCE_STYLES[fix.evidence_basis] ?? ""
+                      }`}
+                    >
+                      {fix.evidence_basis.replace("_", " ")}
+                    </span>
+                  )}
+                </td>
                 <td className="p-3 text-xs text-vecton-dark/60 font-mono">
                   {fix.estimated_improvement}
                 </td>
@@ -86,6 +106,15 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
               </span>
               <SeverityPill severity={fix.severity} />
               <DifficultyPill difficulty={fix.difficulty} />
+              {fix.evidence_basis && (
+                <span
+                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                    EVIDENCE_STYLES[fix.evidence_basis] ?? ""
+                  }`}
+                >
+                  {fix.evidence_basis.replace("_", " ")}
+                </span>
+              )}
             </div>
             <p className="text-xs text-vecton-dark/70 mb-2">{fix.fix}</p>
             <div className="flex items-center justify-between">

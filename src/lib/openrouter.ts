@@ -1,7 +1,8 @@
-// OpenRouter API client (OpenAI-compatible chat completions)
+// Anthropic API client for LLM calls
 
+import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { getOpenRouterApiKey, MODEL_PRICING } from "./config";
+import { getAnthropicApiKey, MODEL_PRICING } from "./config";
 import { trackCost } from "./cost-tracker";
 
 export interface LLMResponse<T> {
@@ -13,23 +14,12 @@ export interface LLMResponse<T> {
   latency_ms: number;
 }
 
-interface OpenRouterMessage {
-  role: "system" | "user" | "assistant";
-  content: string;
-}
-
-interface OpenRouterChoice {
-  message: {
-    content: string;
-  };
-}
-
-interface OpenRouterResponse {
-  choices: OpenRouterChoice[];
-  usage?: {
-    prompt_tokens: number;
-    completion_tokens: number;
-  };
+// Map OpenRouter-style model names to Anthropic SDK model IDs
+function toAnthropicModelId(model: string): string {
+  // Strip "anthropic/" prefix if present (legacy OpenRouter format)
+  const base = model.replace(/^anthropic\//, "");
+  // Convert dots to hyphens: claude-sonnet-4.6 → claude-sonnet-4-6
+  return base.replace(/\./g, "-");
 }
 
 // Strip markdown code fences from LLM response
@@ -97,116 +87,83 @@ export async function callOpenRouter<T>(options: {
     maxRetries = 1,
   } = options;
 
-  const apiKey = getOpenRouterApiKey();
+  const apiKey = getAnthropicApiKey();
   if (!apiKey) {
-    throw new Error("OPENROUTER_API_KEY not set. Add it to your .env file.");
+    throw new Error("ANTHROPIC_API_KEY not set. Add it to your .env file.");
   }
 
-  // Per-tier request timeout: 2 min for extraction (Sonnet), 5 min for intelligence (Opus)
-  const timeoutMs = tier === "extraction" ? 120_000 : 300_000;
-  const fetchSignal = signal
-    ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
-    : AbortSignal.timeout(timeoutMs);
+  const anthropicModel = toAnthropicModelId(model);
 
-  const messages: OpenRouterMessage[] = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: userPrompt },
-  ];
+  // Per-tier request timeout: 2 min for extraction, 5 min for intelligence
+  const timeoutMs = tier === "extraction" ? 120_000 : 300_000;
+
+  const client = new Anthropic({ apiKey });
 
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const startTime = Date.now();
 
-    const requestBody: Record<string, unknown> = {
-      model,
-      messages:
-        attempt === 0
-          ? messages
-          : [
-              ...messages,
-              {
-                role: "user",
-                content: `Your previous response had validation errors: ${lastError?.message}. Please fix and return valid JSON matching the schema exactly.`,
-              },
-            ],
-    };
+    const userMessages: Anthropic.MessageParam[] =
+      attempt === 0
+        ? [{ role: "user", content: userPrompt }]
+        : [
+            { role: "user", content: userPrompt },
+            {
+              role: "assistant",
+              content: "Here is the JSON:",
+            },
+            {
+              role: "user",
+              content: `Your previous response had validation errors: ${lastError?.message}. Please fix and return valid JSON matching the schema exactly.`,
+            },
+          ];
 
-    // Try with response_format first
-    if (attempt === 0) {
-      requestBody.response_format = { type: "json_object" };
-    }
-
-    let response: Response;
+    let response: Anthropic.Message;
     try {
-      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://vitalscan.dev",
-          "X-Title": "VitalScan",
+      response = await client.messages.create(
+        {
+          model: anthropicModel,
+          max_tokens: 16384,
+          system: systemPrompt,
+          messages: userMessages,
         },
-        body: JSON.stringify(requestBody),
-        signal: fetchSignal,
-      });
+        {
+          timeout: timeoutMs,
+          signal: signal,
+        },
+      );
     } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        throw new Error(
-          `OpenRouter request timed out after ${timeoutMs / 1000}s`,
-        );
-      }
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error("Analysis cancelled");
+      }
+      if (
+        err instanceof Anthropic.APIConnectionTimeoutError ||
+        (err instanceof Error && err.message.includes("timed out"))
+      ) {
+        throw new Error(
+          `Anthropic request timed out after ${timeoutMs / 1000}s`,
+        );
+      }
+      // Re-throw API errors with useful message
+      if (err instanceof Anthropic.APIError) {
+        throw new Error(`Anthropic API error (${err.status}): ${err.message}`);
       }
       throw err;
     }
 
-    // Handle 400 from json_mode not supported — retry without it
-    if (response.status === 400 && attempt === 0) {
-      delete requestBody.response_format;
-      const retryResponse = await fetch(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://vitalscan.dev",
-            "X-Title": "VitalScan",
-          },
-          body: JSON.stringify(requestBody),
-          signal: fetchSignal,
-        },
-      );
-      response = retryResponse;
-    }
-
-    // Handle rate limiting with exponential backoff
-    if (response.status === 429) {
-      const backoffMs = Math.min(2000 * Math.pow(2, attempt), 8000);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
-      continue;
-    }
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => "");
-      throw new Error(
-        `OpenRouter API error (${response.status}): ${errorBody}`,
-      );
-    }
-
-    const result: OpenRouterResponse = await response.json();
     const latencyMs = Date.now() - startTime;
 
-    const rawContent = result.choices?.[0]?.message?.content;
+    // Extract text content from response
+    const textBlock = response.content.find((b) => b.type === "text");
+    const rawContent = textBlock?.type === "text" ? textBlock.text : null;
     if (!rawContent) {
-      throw new Error("Empty response from OpenRouter");
+      throw new Error("Empty response from Anthropic");
     }
 
     const usage = {
-      input_tokens: result.usage?.prompt_tokens ?? 0,
-      output_tokens: result.usage?.completion_tokens ?? 0,
+      input_tokens: response.usage.input_tokens,
+      output_tokens: response.usage.output_tokens,
     };
 
     // Track cost
@@ -251,5 +208,5 @@ export async function callOpenRouter<T>(options: {
     }
   }
 
-  throw lastError ?? new Error("Unexpected error in callOpenRouter");
+  throw lastError ?? new Error("Unexpected error in callLLM");
 }

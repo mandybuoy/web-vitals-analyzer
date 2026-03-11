@@ -160,6 +160,11 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
             <p className="text-[10px] text-vecton-dark/40 font-mono mb-2">
               {entry.domain} &middot; {entry.category}
             </p>
+            {entry.trade_off && (
+              <p className="text-[10px] text-amber-600/60 mb-2 italic">
+                {entry.trade_off}
+              </p>
+            )}
             <div className="flex gap-2">
               <div className="text-center">
                 <p className="text-[9px] text-vecton-dark/40 mb-0.5">LCP</p>

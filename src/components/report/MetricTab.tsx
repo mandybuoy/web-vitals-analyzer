@@ -15,8 +15,13 @@ export default function MetricTab({ issues, metricLabel }: MetricTabProps) {
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
   );
 
-  const firstParty = sorted.filter((i) => i.type === "first_party");
-  const thirdParty = sorted.filter((i) => i.type === "third_party");
+  const observations = sorted.filter((i) => i.is_observation === true);
+  const firstParty = sorted.filter(
+    (i) => i.type === "first_party" && !i.is_observation,
+  );
+  const thirdParty = sorted.filter(
+    (i) => i.type === "third_party" && !i.is_observation,
+  );
 
   if (issues.length === 0) {
     return (
@@ -57,6 +62,23 @@ export default function MetricTab({ issues, metricLabel }: MetricTabProps) {
           <div className="space-y-2">
             {thirdParty.map((issue, i) => (
               <IssueCard key={`tp-${i}`} issue={issue} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {observations.length > 0 && (
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-4 h-[1px] bg-blue-400/40" />
+            <h4 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
+              Observations
+            </h4>
+            <div className="flex-1 h-[1px] bg-vecton-dark/10" />
+          </div>
+          <div className="space-y-2">
+            {observations.map((issue, i) => (
+              <IssueCard key={`obs-${i}`} issue={issue} />
             ))}
           </div>
         </div>

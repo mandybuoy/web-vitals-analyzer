@@ -1,6 +1,6 @@
 // 4-stage pipeline orchestrator
-// Stage 1: Data Collection (PSI + HTML fetch)
-// Stage 2: HTML Signal Extraction (Sonnet via OpenRouter)
+// Stage 1: Data Collection (PSI + HTML fetch + extraction in parallel)
+// Stage 2: Signal Processing (extract source stats from Stage 1 results)
 // Stage 3: Deep Analysis (Opus via OpenRouter, mobile + desktop in parallel)
 // Stage 4: Report Assembly + SQLite persistence
 
@@ -91,6 +91,7 @@ const extractedSignalsSchema = z.object({
 const severityEnum = z.enum(["critical", "high", "medium", "low"]);
 const difficultyEnum = z.enum(["easy", "moderate", "hard"]);
 const ratingEnum = z.enum(["good", "needs_improvement", "poor"]);
+const evidenceBasisEnum = z.enum(["measured", "inferred", "best_practice"]);
 
 const issueSchema = z.object({
   name: z.string(),
@@ -101,6 +102,10 @@ const issueSchema = z.object({
   impact_metric: z.string(),
   severity: severityEnum,
   difficulty: difficultyEnum,
+  is_generic_example: z.boolean().optional(),
+  is_observation: z.boolean().optional(),
+  trade_off: z.string().nullable().optional(),
+  evidence_basis: evidenceBasisEnum.optional(),
 });
 
 const deviceReportSchema = z.object({
@@ -133,6 +138,7 @@ const deviceReportSchema = z.object({
       recommendation: z.enum(["remove", "defer", "lazy_load", "keep"]),
       fix: z.string(),
       code_example: z.string().nullable().optional(),
+      trade_off: z.string().nullable().optional(),
     }),
   ),
   priority_table: z.array(
@@ -143,6 +149,7 @@ const deviceReportSchema = z.object({
       severity: severityEnum,
       difficulty: difficultyEnum,
       estimated_improvement: z.string(),
+      evidence_basis: evidenceBasisEnum.optional(),
     }),
   ),
 });
@@ -217,7 +224,7 @@ export async function runPipeline(
   const warnings: string[] = [];
 
   try {
-    // ===== STAGE 1: Data Collection =====
+    // ===== STAGE 1: Data Collection + Extraction (all in parallel) =====
     checkAbort(analysisId);
 
     const psiApiKey = getGoogleApiKey();
@@ -225,18 +232,48 @@ export async function runPipeline(
       throw new Error("GOOGLE_PSI_API_KEY not set. Add it to your .env file.");
     }
 
-    const [mobileResult, desktopResult, htmlResult] = await Promise.allSettled([
-      fetchPSI(url, "mobile", psiApiKey),
-      fetchPSI(url, "desktop", psiApiKey),
-      fetchHTML(url),
-    ]);
+    const extractionModel =
+      getSetting("extraction_model") ?? DEFAULT_EXTRACTION_MODEL;
+
+    // Chain extraction off HTML fetch — starts as soon as HTML arrives,
+    // overlapping with PSI fetches that are typically slower
+    const htmlAndExtractionPromise = fetchHTML(url)
+      .then(async (html) => {
+        const { system, user } = buildExtractionPrompt(
+          html.head,
+          html.fullHtml,
+        );
+        const result = await callOpenRouter({
+          model: extractionModel,
+          systemPrompt: system,
+          userPrompt: user,
+          schema: extractedSignalsSchema,
+          analysisId,
+          tier: "extraction",
+          signal: getAbortSignal(analysisId),
+        });
+        return { html, extracted: result.data };
+      })
+      .catch((err) => {
+        console.warn("[pipeline] HTML fetch/extraction failed:", err);
+        return null;
+      });
+
+    const [mobileResult, desktopResult, htmlExtractionResult] =
+      await Promise.allSettled([
+        fetchPSI(url, "mobile", psiApiKey),
+        fetchPSI(url, "desktop", psiApiKey),
+        htmlAndExtractionPromise,
+      ]);
 
     const mobilePsi =
       mobileResult.status === "fulfilled" ? mobileResult.value : null;
     const desktopPsi =
       desktopResult.status === "fulfilled" ? desktopResult.value : null;
-    const fetchedHtml =
-      htmlResult.status === "fulfilled" ? htmlResult.value : null;
+    const htmlExtraction =
+      htmlExtractionResult.status === "fulfilled"
+        ? htmlExtractionResult.value
+        : null;
 
     if (!mobilePsi && !desktopPsi) {
       throw new Error(
@@ -248,46 +285,23 @@ export async function runPipeline(
 
     if (!mobilePsi) warnings.push("Mobile PSI analysis failed");
     if (!desktopPsi) warnings.push("Desktop PSI analysis failed");
-    if (!fetchedHtml)
-      warnings.push("HTML fetch failed — analysis will use PSI data only");
+    if (!htmlExtraction)
+      warnings.push("HTML fetch/extraction failed — using PSI data only");
 
     updateStage(analysisId, 2, "Extracting", 25);
 
-    // ===== STAGE 2: HTML Signal Extraction =====
+    // ===== STAGE 2: Signal Processing (results already available from Stage 1) =====
     checkAbort(analysisId);
 
-    let extractedSignals: ExtractedSignals | null = null;
+    const fetchedHtml = htmlExtraction?.html ?? null;
+    const extractedSignals: ExtractedSignals | null =
+      htmlExtraction?.extracted ?? null;
     let sourceStats: SourceStats = EMPTY_SOURCE_STATS;
 
-    if (fetchedHtml) {
-      const extractionModel =
-        getSetting("extraction_model") ?? DEFAULT_EXTRACTION_MODEL;
-
-      const { system, user } = buildExtractionPrompt(
-        fetchedHtml.head,
-        fetchedHtml.fullHtml,
-      );
-
-      try {
-        const result = await callOpenRouter({
-          model: extractionModel,
-          systemPrompt: system,
-          userPrompt: user,
-          schema: extractedSignalsSchema,
-          analysisId,
-          tier: "extraction",
-          signal: getAbortSignal(analysisId),
-        });
-        extractedSignals = result.data;
-        sourceStats = extractedSignalsToSourceStats(extractedSignals);
-      } catch (err) {
-        console.warn("[pipeline] HTML extraction failed:", err);
-        warnings.push("HTML signal extraction failed — using PSI data only");
-      }
-    }
-
-    // Fallback: extract partial source stats from PSI data when HTML fetch/extraction failed
-    if (sourceStats === EMPTY_SOURCE_STATS) {
+    if (extractedSignals) {
+      sourceStats = extractedSignalsToSourceStats(extractedSignals);
+    } else {
+      // Fallback: extract partial source stats from PSI data
       const fallbackPsi = mobilePsi ?? desktopPsi;
       if (fallbackPsi) {
         sourceStats = extractFallbackSourceStats(fallbackPsi);

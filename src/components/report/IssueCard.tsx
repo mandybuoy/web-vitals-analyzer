@@ -10,14 +10,27 @@ interface IssueCardProps {
   defaultOpen?: boolean;
 }
 
+const EVIDENCE_STYLES: Record<string, string> = {
+  measured: "bg-[#0cce6b]/10 text-[#0cce6b]",
+  inferred: "bg-[#ffa400]/10 text-[#ffa400]",
+  best_practice: "bg-vecton-dark/5 text-vecton-dark/50",
+};
+
 export default function IssueCard({
   issue,
   defaultOpen = false,
 }: IssueCardProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const isObservation = issue.is_observation === true;
 
   return (
-    <div className="rounded-lg bg-white/50 border border-vecton-dark/10 overflow-hidden">
+    <div
+      className={`rounded-lg overflow-hidden border ${
+        isObservation
+          ? "bg-blue-50/30 border-blue-300/20"
+          : "bg-white/50 border-vecton-dark/10"
+      }`}
+    >
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-vecton-dark/3 transition-colors"
@@ -33,8 +46,16 @@ export default function IssueCard({
         </svg>
         <span className="flex-1 text-sm text-vecton-dark/80">{issue.name}</span>
         <div className="flex items-center gap-2">
-          <SeverityPill severity={issue.severity} />
-          <DifficultyPill difficulty={issue.difficulty} />
+          {isObservation ? (
+            <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider bg-blue-500/10 text-blue-600">
+              info
+            </span>
+          ) : (
+            <>
+              <SeverityPill severity={issue.severity} />
+              <DifficultyPill difficulty={issue.difficulty} />
+            </>
+          )}
         </div>
       </button>
       <div
@@ -46,28 +67,60 @@ export default function IssueCard({
             <p className="text-xs text-vecton-dark/60 mb-3">
               {issue.description}
             </p>
-            <div className="p-3 rounded bg-vecton-orange/5 border border-vecton-orange/10">
-              <p className="text-[10px] text-vecton-orange/60 uppercase tracking-wider mb-1">
-                Fix
-              </p>
-              <p className="text-xs text-vecton-dark/70 font-mono whitespace-pre-wrap">
-                {issue.fix}
-              </p>
-            </div>
-            {issue.code_example && (
-              <div className="mt-2 p-3 rounded bg-vecton-dark border border-vecton-dark/20 overflow-x-auto">
-                <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
-                  Code
+            {!isObservation && (
+              <div className="p-3 rounded bg-vecton-orange/5 border border-vecton-orange/10">
+                <p className="text-[10px] text-vecton-orange/60 uppercase tracking-wider mb-1">
+                  Fix
                 </p>
-                <pre className="text-xs text-green-300/90 font-mono whitespace-pre-wrap leading-relaxed">
-                  <code>{issue.code_example}</code>
-                </pre>
+                <p className="text-xs text-vecton-dark/70 font-mono whitespace-pre-wrap">
+                  {issue.fix}
+                </p>
               </div>
             )}
-            {issue.impact_metric && (
-              <p className="text-[10px] text-vecton-dark/40 mt-2 font-mono">
-                Impact: {issue.impact_metric}
-              </p>
+            {!isObservation && issue.trade_off && (
+              <div className="mt-2 p-3 rounded bg-amber-50 border border-amber-200/30">
+                <p className="text-[10px] text-amber-700/60 uppercase tracking-wider mb-1">
+                  Trade-off
+                </p>
+                <p className="text-xs text-amber-800/70 font-mono whitespace-pre-wrap">
+                  {issue.trade_off}
+                </p>
+              </div>
+            )}
+            {issue.code_example && (
+              <div className="mt-2">
+                {issue.is_generic_example === true && (
+                  <p className="text-[10px] text-amber-600/70 mb-1 italic">
+                    Generic pattern — actual implementation may vary
+                  </p>
+                )}
+                <div className="p-3 rounded bg-vecton-dark border border-vecton-dark/20 overflow-x-auto">
+                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
+                    Code
+                  </p>
+                  <pre className="text-xs text-green-300/90 font-mono whitespace-pre-wrap leading-relaxed">
+                    <code>{issue.code_example}</code>
+                  </pre>
+                </div>
+              </div>
+            )}
+            {(issue.impact_metric || issue.evidence_basis) && (
+              <div className="flex items-center gap-3 mt-2">
+                {issue.impact_metric && (
+                  <p className="text-[10px] text-vecton-dark/40 font-mono">
+                    Impact: {issue.impact_metric}
+                  </p>
+                )}
+                {issue.evidence_basis && (
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                      EVIDENCE_STYLES[issue.evidence_basis] ?? ""
+                    }`}
+                  >
+                    {issue.evidence_basis.replace("_", " ")}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -85,6 +85,7 @@ const RETRYABLE_PATTERNS = [
 ];
 const PSI_MAX_RETRIES = 2;
 const PSI_BASE_BACKOFF_MS = 5_000;
+const PSI_TIMEOUT_MS = 45_000;
 
 export async function fetchPSI(
   url: string,
@@ -110,7 +111,9 @@ export async function fetchPSI(
       await new Promise((resolve) => setTimeout(resolve, backoffMs));
     }
 
-    const response = await fetch(apiUrl.toString());
+    const response = await fetch(apiUrl.toString(), {
+      signal: AbortSignal.timeout(PSI_TIMEOUT_MS),
+    });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));

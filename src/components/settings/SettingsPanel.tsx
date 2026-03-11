@@ -103,7 +103,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                   </div>
                   <div className="p-3 rounded-lg bg-white/50 border border-vecton-dark/10">
                     <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
-                      OpenRouter
+                      Anthropic
                     </p>
                     <p className="text-xs text-vecton-dark/70 font-mono">
                       {settings.openrouter_key_status}
