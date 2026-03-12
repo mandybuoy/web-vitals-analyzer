@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AnalyticsProvider from "@/components/AnalyticsProvider";
 
 export const metadata: Metadata = {
   title: "VitalScan by Vecton — Core Web Vitals Analyzer",
@@ -15,6 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        <AnalyticsProvider />
         <main className="relative z-10">{children}</main>
       </body>
     </html>

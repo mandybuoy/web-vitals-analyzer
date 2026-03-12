@@ -14,6 +14,7 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "better-sqlite3": "^12.6.2",
     "lucide-react": "^0.400.0",
+    "mixpanel-browser": "^2.75.0",
     "next": "^16.1.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
+    "@types/mixpanel-browser": "^2.60.0",
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",

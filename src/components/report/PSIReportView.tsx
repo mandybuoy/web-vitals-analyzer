@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AnalysisReport, PSIResult, SourceStats } from "@/lib/types";
+import { track } from "@/lib/analytics";
 import ScoreGauge from "../ScoreGauge";
 
 interface PSIReportViewProps {
@@ -250,7 +251,11 @@ function DiagnosticsSection({
       </div>
       {items.length > 5 && (
         <button
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => {
+            if (!expanded)
+              track("diagnostics_expanded", { count: items.length });
+            setExpanded(!expanded);
+          }}
           className="text-[11px] text-vecton-orange mt-2"
         >
           {expanded ? "Show less" : `Show all ${items.length} diagnostics`}
@@ -352,7 +357,10 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
             <button
               key={tab}
               onClick={() => {
-                if (available) setActiveDevice(tab);
+                if (available) {
+                  track("device_toggled", { device: tab, score });
+                  setActiveDevice(tab);
+                }
               }}
               disabled={!available}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all

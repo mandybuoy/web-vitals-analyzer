@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAnalysis } from "@/hooks/useAnalysis";
+import { track } from "@/lib/analytics";
 import { useHistory } from "@/hooks/useHistory";
 import ReportView from "@/components/report/ReportView";
 import PSIReportView from "@/components/report/PSIReportView";
@@ -36,17 +37,20 @@ export default function Home() {
   const history = useHistory();
   const { psiOnly, toggle: togglePsiOnly } = usePsiOnlyMode();
 
+  const analysisStartTime = useRef<number>(0);
+
   // Hidden keyboard shortcut: Ctrl+Shift+P (Cmd+Shift+P on Mac)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "P") {
         e.preventDefault();
         togglePsiOnly();
+        track("psi_mode_toggled", { enabled: !psiOnly });
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePsiOnly]);
+  }, [togglePsiOnly, psiOnly]);
 
   const handleAnalyze = async () => {
     if (!url.trim()) return;
@@ -55,6 +59,9 @@ export default function Home() {
     if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
       targetUrl = "https://" + targetUrl;
     }
+
+    track("analysis_started", { url: targetUrl, psi_only: psiOnly });
+    analysisStartTime.current = Date.now();
 
     await analysis.start(targetUrl, psiOnly);
     // Refresh history after starting (it will show when done)
@@ -72,6 +79,37 @@ export default function Home() {
   const handleHistorySelect = async (id: string) => {
     await analysis.loadReport(id);
   };
+
+  // Track analysis completion and failure
+  const prevState = useRef(analysis.state);
+  useEffect(() => {
+    if (
+      prevState.current === "running" &&
+      analysis.state === "done" &&
+      analysis.report
+    ) {
+      const duration_s = analysisStartTime.current
+        ? Math.round((Date.now() - analysisStartTime.current) / 1000)
+        : undefined;
+      track("analysis_completed", {
+        url: analysis.report.url,
+        duration_s,
+        mobile_score:
+          analysis.report.mobile?.lab_metrics.performance_score ??
+          analysis.report.mobile_psi?.overallScore ??
+          null,
+        desktop_score:
+          analysis.report.desktop?.lab_metrics.performance_score ??
+          analysis.report.desktop_psi?.overallScore ??
+          null,
+        psi_only: !!analysis.report.psi_only,
+      });
+    }
+    if (prevState.current === "running" && analysis.state === "error") {
+      track("analysis_failed", { url: url, error: analysis.error });
+    }
+    prevState.current = analysis.state;
+  }, [analysis.state, analysis.report, analysis.error, url]);
 
   const isRunning = analysis.state === "running";
   const isDone = analysis.state === "done";
@@ -103,7 +141,10 @@ export default function Home() {
           {/* Settings gear (hidden in PSI-only mode) */}
           {!psiOnly && (
             <button
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => {
+                track("settings_opened");
+                setSettingsOpen(true);
+              }}
               className="absolute top-6 right-6 text-vecton-dark/30 hover:text-vecton-dark/60 transition-colors"
               title="Settings"
             >
@@ -155,7 +196,14 @@ export default function Home() {
               disabled={isRunning}
             />
             <button
-              onClick={isDone ? () => analysis.reset() : handleAnalyze}
+              onClick={
+                isDone
+                  ? () => {
+                      track("new_analysis_clicked");
+                      analysis.reset();
+                    }
+                  : handleAnalyze
+              }
               disabled={!url.trim() && !isDone}
               className="mr-2 px-5 py-2.5 bg-vecton-orange hover:bg-vecton-orange/90 disabled:bg-vecton-beige/8 disabled:text-vecton-beige/20 text-vecton-light text-sm rounded-md transition-all flex items-center gap-2"
             >
@@ -211,7 +259,14 @@ export default function Home() {
           <div className="max-w-2xl mx-auto mb-8">
             <ProgressBar
               status={analysis.status}
-              onCancel={analysis.cancel}
+              onCancel={() => {
+                track("analysis_cancelled", {
+                  url,
+                  stage: analysis.status?.stage,
+                  progress_pct: analysis.status?.progress_pct,
+                });
+                analysis.cancel();
+              }}
               psiOnly={psiOnly}
             />
           </div>

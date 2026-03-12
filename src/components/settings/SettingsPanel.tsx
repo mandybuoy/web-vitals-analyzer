@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useSettings } from "@/hooks/useSettings";
+import { track } from "@/lib/analytics";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -27,6 +28,10 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
 
   const handleSave = async () => {
     await save({
+      extraction_model: extractionModel,
+      intelligence_model: intelligenceModel,
+    });
+    track("settings_saved", {
       extraction_model: extractionModel,
       intelligence_model: intelligenceModel,
     });
