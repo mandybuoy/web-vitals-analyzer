@@ -7,7 +7,7 @@ const HTML_BODY_LIMIT = 50_000; // chars of body sent to Sonnet
 
 // ----- HTML Signal Extraction (Sonnet) -----
 
-const EXTRACTION_SYSTEM_PROMPT = `You are a web performance analysis tool. Extract structured performance signals from the provided HTML source code.
+export const DEFAULT_EXTRACTION_SYSTEM_PROMPT = `You are a web performance analysis tool. Extract structured performance signals from the provided HTML source code.
 
 Return a JSON object matching this exact schema:
 
@@ -67,18 +67,19 @@ Rules:
 export function buildExtractionPrompt(
   head: string,
   fullHtml: string,
+  systemPrompt?: string,
 ): { system: string; user: string } {
   const truncatedBody = fullHtml.slice(0, HTML_BODY_LIMIT);
 
   return {
-    system: EXTRACTION_SYSTEM_PROMPT,
+    system: systemPrompt ?? DEFAULT_EXTRACTION_SYSTEM_PROMPT,
     user: `Analyze this HTML and extract performance signals:\n\n${truncatedBody}`,
   };
 }
 
 // ----- Tier 2 Deep Analysis (Opus) -----
 
-const TIER2_SYSTEM_PROMPT = `You are a Core Web Vitals expert performing deep root-cause analysis. You receive structured PageSpeed Insights data, CrUX field metrics, and HTML source signals for a single device type.
+export const DEFAULT_TIER2_SYSTEM_PROMPT = `You are a Core Web Vitals expert performing deep root-cause analysis. You receive structured PageSpeed Insights data, CrUX field metrics, and HTML source signals for a single device type.
 
 Your task: produce a thorough root-cause analysis identifying WHY each Core Web Vital (INP, LCP, CLS) is performing as it is, and provide actionable, code-level fixes a developer can immediately implement.
 
@@ -207,6 +208,7 @@ export function buildTier2Prompt(
   extractedSignals: ExtractedSignals | null,
   head: string,
   device: "mobile" | "desktop",
+  systemPrompt?: string,
 ): { system: string; user: string } {
   const truncatedHead = head.slice(0, HTML_HEAD_LIMIT);
 
@@ -226,7 +228,7 @@ export function buildTier2Prompt(
   }
 
   return {
-    system: TIER2_SYSTEM_PROMPT,
+    system: systemPrompt ?? DEFAULT_TIER2_SYSTEM_PROMPT,
     user: parts.join("\n"),
   };
 }

@@ -23,7 +23,12 @@ import { getSetting } from "./db";
 import { DEFAULT_EXTRACTION_MODEL, DEFAULT_INTELLIGENCE_MODEL } from "./config";
 import { fetchHTML } from "./html-fetcher";
 import { callOpenRouter } from "./openrouter";
-import { buildExtractionPrompt, buildTier2Prompt } from "./prompts";
+import {
+  buildExtractionPrompt,
+  buildTier2Prompt,
+  DEFAULT_EXTRACTION_SYSTEM_PROMPT,
+  DEFAULT_TIER2_SYSTEM_PROMPT,
+} from "./prompts";
 import { saveAnalysis } from "./db";
 import {
   updateStage,
@@ -259,6 +264,8 @@ export async function runPipeline(
 
     const extractionModel =
       getSetting("extraction_model") ?? DEFAULT_EXTRACTION_MODEL;
+    const customExtractionPrompt =
+      getSetting("extraction_system_prompt") ?? undefined;
 
     // HTML fetch + extraction with per-step tracking
     updateCollectionProgress(analysisId, {
@@ -289,6 +296,7 @@ export async function runPipeline(
         const { system, user } = buildExtractionPrompt(
           html.head,
           html.fullHtml,
+          customExtractionPrompt,
         );
         const result = await callOpenRouter({
           model: extractionModel,
@@ -565,6 +573,7 @@ export async function runPipeline(
 
     const intelligenceModel =
       getSetting("intelligence_model") ?? DEFAULT_INTELLIGENCE_MODEL;
+    const customTier2Prompt = getSetting("tier2_system_prompt") ?? undefined;
     const headHtml = fetchedHtml?.head ?? "";
 
     const analyzeDevice = async (
@@ -576,6 +585,7 @@ export async function runPipeline(
         extractedSignals,
         headHtml,
         device,
+        customTier2Prompt,
       );
 
       const result = await callOpenRouter({

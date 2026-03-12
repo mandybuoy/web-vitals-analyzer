@@ -252,6 +252,11 @@ export function setSetting(key: string, value: string): void {
   );
 }
 
+export function deleteSetting(key: string): void {
+  const db = getDb();
+  db.prepare("DELETE FROM settings WHERE key = ?").run(key);
+}
+
 export function getAllSettings(): Record<string, string> {
   const db = getDb();
   const rows = db.prepare("SELECT key, value FROM settings").all() as Array<{
