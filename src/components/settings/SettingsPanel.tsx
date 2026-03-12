@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSettings } from "@/hooks/useSettings";
 import { track } from "@/lib/analytics";
+import type { PromptsResponse } from "@/lib/types";
+import * as api from "@/lib/api";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -15,6 +17,77 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [intelligenceModel, setIntelligenceModel] = useState("");
   const [showCosts, setShowCosts] = useState(false);
 
+  // Prompt editor state
+  const [showPrompts, setShowPrompts] = useState(false);
+  const [prompts, setPrompts] = useState<PromptsResponse | null>(null);
+  const [extractionPrompt, setExtractionPrompt] = useState("");
+  const [tier2Prompt, setTier2Prompt] = useState("");
+  const [promptsLoading, setPromptsLoading] = useState(false);
+  const [promptsSaving, setPromptsSaving] = useState(false);
+  const [promptsError, setPromptsError] = useState<string | null>(null);
+
+  const loadPrompts = useCallback(async () => {
+    setPromptsLoading(true);
+    setPromptsError(null);
+    try {
+      const data = await api.getPrompts();
+      setPrompts(data);
+      setExtractionPrompt(data.extraction_system_prompt);
+      setTier2Prompt(data.tier2_system_prompt);
+    } catch (err) {
+      setPromptsError(
+        err instanceof Error ? err.message : "Failed to load prompts",
+      );
+    } finally {
+      setPromptsLoading(false);
+    }
+  }, []);
+
+  const handleSavePrompts = async () => {
+    setPromptsSaving(true);
+    setPromptsError(null);
+    try {
+      const updates: Record<string, string> = {};
+      if (extractionPrompt !== prompts?.extraction_system_prompt) {
+        updates.extraction_system_prompt = extractionPrompt;
+      }
+      if (tier2Prompt !== prompts?.tier2_system_prompt) {
+        updates.tier2_system_prompt = tier2Prompt;
+      }
+      if (Object.keys(updates).length > 0) {
+        await api.savePrompts(updates);
+        track("prompts_saved", { keys: Object.keys(updates) });
+        await loadPrompts();
+      }
+    } catch (err) {
+      setPromptsError(
+        err instanceof Error ? err.message : "Failed to save prompts",
+      );
+    } finally {
+      setPromptsSaving(false);
+    }
+  };
+
+  const handleResetPrompt = async (
+    key: "extraction_system_prompt" | "tier2_system_prompt",
+  ) => {
+    setPromptsError(null);
+    try {
+      await api.resetPrompts([key]);
+      track("prompt_reset", { key });
+      await loadPrompts();
+    } catch (err) {
+      setPromptsError(
+        err instanceof Error ? err.message : "Failed to reset prompt",
+      );
+    }
+  };
+
+  const hasPromptChanges =
+    prompts &&
+    (extractionPrompt !== prompts.extraction_system_prompt ||
+      tier2Prompt !== prompts.tier2_system_prompt);
+
   useEffect(() => {
     if (settings) {
       setExtractionModel(settings.extraction_model);
@@ -23,8 +96,11 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   }, [settings]);
 
   useEffect(() => {
-    if (open) refresh();
-  }, [open, refresh]);
+    if (open) {
+      refresh();
+      loadPrompts();
+    }
+  }, [open, refresh, loadPrompts]);
 
   const handleSave = async () => {
     await save({
@@ -167,6 +243,124 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     </button>
                   )}
                 </div>
+              </div>
+
+              {/* Prompts */}
+              <div className="mb-8">
+                <button
+                  onClick={() => setShowPrompts(!showPrompts)}
+                  className="flex items-center gap-2 mb-3"
+                >
+                  <h3 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
+                    Prompts
+                  </h3>
+                  <svg
+                    className={`w-3 h-3 text-vecton-dark/30 transition-transform ${showPrompts ? "rotate-180" : ""}`}
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {showPrompts && (
+                  <div className="space-y-4">
+                    {promptsLoading && (
+                      <p className="text-xs text-vecton-dark/40">
+                        Loading prompts...
+                      </p>
+                    )}
+
+                    {promptsError && (
+                      <div className="p-2 rounded bg-[#ff4e42]/8 border border-[#ff4e42]/15 text-[10px] text-[#ff4e42]">
+                        {promptsError}
+                      </div>
+                    )}
+
+                    {prompts && !promptsLoading && (
+                      <>
+                        {/* Extraction prompt */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider">
+                              Extraction (HTML analysis)
+                            </label>
+                            {prompts.is_extraction_custom && (
+                              <button
+                                onClick={() =>
+                                  handleResetPrompt("extraction_system_prompt")
+                                }
+                                className="text-[9px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
+                              >
+                                Reset to default
+                              </button>
+                            )}
+                          </div>
+                          <textarea
+                            value={extractionPrompt}
+                            onChange={(e) =>
+                              setExtractionPrompt(e.target.value)
+                            }
+                            rows={12}
+                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-[11px] text-vecton-dark/70 font-mono leading-relaxed resize-y"
+                            spellCheck={false}
+                          />
+                          {prompts.is_extraction_custom && (
+                            <p className="text-[9px] text-vecton-orange/50 mt-0.5">
+                              Custom prompt active
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Tier 2 prompt */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider">
+                              Intelligence (deep analysis)
+                            </label>
+                            {prompts.is_tier2_custom && (
+                              <button
+                                onClick={() =>
+                                  handleResetPrompt("tier2_system_prompt")
+                                }
+                                className="text-[9px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
+                              >
+                                Reset to default
+                              </button>
+                            )}
+                          </div>
+                          <textarea
+                            value={tier2Prompt}
+                            onChange={(e) => setTier2Prompt(e.target.value)}
+                            rows={15}
+                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-[11px] text-vecton-dark/70 font-mono leading-relaxed resize-y"
+                            spellCheck={false}
+                          />
+                          {prompts.is_tier2_custom && (
+                            <p className="text-[9px] text-vecton-orange/50 mt-0.5">
+                              Custom prompt active
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Save button */}
+                        {hasPromptChanges && (
+                          <button
+                            onClick={handleSavePrompts}
+                            disabled={promptsSaving}
+                            className="px-4 py-2 bg-vecton-orange text-white text-xs rounded hover:bg-vecton-orange/90 disabled:opacity-50 transition-colors"
+                          >
+                            {promptsSaving
+                              ? "Saving..."
+                              : "Save Prompt Changes"}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Cost Tracker */}

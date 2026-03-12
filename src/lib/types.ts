@@ -363,6 +363,13 @@ export interface AppSettings {
   intelligence_model: string;
 }
 
+export interface PromptsResponse {
+  extraction_system_prompt: string;
+  tier2_system_prompt: string;
+  is_extraction_custom: boolean;
+  is_tier2_custom: boolean;
+}
+
 export interface SettingsResponse extends AppSettings {
   google_key_status: string; // masked, e.g., "AIza...XXXX" or "Not set"
   openrouter_key_status: string; // masked

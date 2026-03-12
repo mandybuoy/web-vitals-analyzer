@@ -6,6 +6,7 @@ import type {
   HistoryEntry,
   SettingsResponse,
   AppSettings,
+  PromptsResponse,
 } from "./types";
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
@@ -84,5 +85,34 @@ export async function updateSettings(
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
+  });
+}
+
+// Fetch prompts
+export async function getPrompts(): Promise<PromptsResponse> {
+  return fetchJson<PromptsResponse>("/api/prompts");
+}
+
+// Update prompts
+export async function savePrompts(
+  updates: Partial<
+    Pick<PromptsResponse, "extraction_system_prompt" | "tier2_system_prompt">
+  >,
+): Promise<void> {
+  await fetchJson("/api/prompts", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  });
+}
+
+// Reset prompts to defaults
+export async function resetPrompts(
+  keys: ("extraction_system_prompt" | "tier2_system_prompt")[],
+): Promise<void> {
+  await fetchJson("/api/prompts", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ keys }),
   });
 }
