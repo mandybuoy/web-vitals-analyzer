@@ -248,7 +248,12 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               {/* Prompts */}
               <div className="mb-8">
                 <button
-                  onClick={() => setShowPrompts(!showPrompts)}
+                  onClick={() => {
+                    track("prompts_section_toggled", {
+                      expanded: !showPrompts,
+                    });
+                    setShowPrompts(!showPrompts);
+                  }}
                   className="flex items-center gap-2 mb-3"
                 >
                   <h3 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
@@ -366,7 +371,12 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
               {/* Cost Tracker */}
               <div>
                 <button
-                  onClick={() => setShowCosts(!showCosts)}
+                  onClick={() => {
+                    track("cost_tracker_toggled", {
+                      expanded: !showCosts,
+                    });
+                    setShowCosts(!showCosts);
+                  }}
                   className="flex items-center gap-2 mb-3"
                 >
                   <h3 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">

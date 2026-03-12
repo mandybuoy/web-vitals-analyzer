@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ThirdPartyEntry, Severity } from "@/lib/types";
+import { track } from "@/lib/analytics";
 import SeverityPill from "./SeverityPill";
 
 interface ThirdPartyTabProps {
@@ -60,12 +61,15 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
   });
 
   const toggleSort = (key: SortKey) => {
+    const newDir =
+      sortKey === key ? (sortDir === "asc" ? "desc" : "asc") : "asc";
     if (sortKey === key) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
+      setSortDir(newDir);
     } else {
       setSortKey(key);
       setSortDir("asc");
     }
+    track("third_party_sorted", { sort_key: key, sort_dir: newDir });
   };
 
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (

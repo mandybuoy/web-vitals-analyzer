@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AnalysisReport } from "@/lib/types";
 import { track } from "@/lib/analytics";
 import SummaryCards from "./SummaryCards";
@@ -24,6 +24,11 @@ export default function ReportView({ report }: ReportViewProps) {
   const [activeTab, setActiveTab] = useState<ReportTab>("inp");
 
   const device = activeDevice === "mobile" ? report.mobile : report.desktop;
+
+  // Track initial tab view on mount
+  useEffect(() => {
+    track("report_tab_viewed", { tab: "inp", device: defaultDevice });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
@@ -68,7 +73,7 @@ export default function ReportView({ report }: ReportViewProps) {
               key={tab}
               onClick={() => {
                 if (available) {
-                  track("device_toggled", { device: tab });
+                  track("device_toggled", { device: tab, score });
                   setActiveDevice(tab);
                 }
               }}
@@ -142,7 +147,7 @@ export default function ReportView({ report }: ReportViewProps) {
             <ReportTabBar
               active={activeTab}
               onChange={(tab) => {
-                track("report_tab_viewed", { tab });
+                track("report_tab_viewed", { tab, device: activeDevice });
                 setActiveTab(tab);
               }}
             />

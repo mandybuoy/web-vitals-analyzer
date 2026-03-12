@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import type { Issue } from "@/lib/types";
+import { track } from "@/lib/analytics";
 import SeverityPill from "./SeverityPill";
 import DifficultyPill from "./DifficultyPill";
 
 interface IssueCardProps {
   issue: Issue;
+  metric?: string;
   defaultOpen?: boolean;
 }
 
@@ -18,6 +20,7 @@ const EVIDENCE_STYLES: Record<string, string> = {
 
 export default function IssueCard({
   issue,
+  metric,
   defaultOpen = false,
 }: IssueCardProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -32,7 +35,18 @@ export default function IssueCard({
       }`}
     >
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (!open) {
+            track("issue_expanded", {
+              metric,
+              issue_name: issue.name,
+              severity: issue.severity,
+              type: issue.type,
+              is_observation: isObservation,
+            });
+          }
+          setOpen(!open);
+        }}
         className="w-full flex items-center gap-3 p-3 text-left hover:bg-vecton-dark/3 transition-colors"
       >
         <svg

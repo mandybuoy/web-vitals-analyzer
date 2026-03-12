@@ -44,7 +44,12 @@ export default function MetricTab({ issues, metricLabel }: MetricTabProps) {
           </div>
           <div className="space-y-2">
             {firstParty.map((issue, i) => (
-              <IssueCard key={`fp-${i}`} issue={issue} defaultOpen={i === 0} />
+              <IssueCard
+                key={`fp-${i}`}
+                issue={issue}
+                metric={metricLabel}
+                defaultOpen={i === 0}
+              />
             ))}
           </div>
         </div>
@@ -61,7 +66,7 @@ export default function MetricTab({ issues, metricLabel }: MetricTabProps) {
           </div>
           <div className="space-y-2">
             {thirdParty.map((issue, i) => (
-              <IssueCard key={`tp-${i}`} issue={issue} />
+              <IssueCard key={`tp-${i}`} issue={issue} metric={metricLabel} />
             ))}
           </div>
         </div>
@@ -78,7 +83,7 @@ export default function MetricTab({ issues, metricLabel }: MetricTabProps) {
           </div>
           <div className="space-y-2">
             {observations.map((issue, i) => (
-              <IssueCard key={`obs-${i}`} issue={issue} />
+              <IssueCard key={`obs-${i}`} issue={issue} metric={metricLabel} />
             ))}
           </div>
         </div>

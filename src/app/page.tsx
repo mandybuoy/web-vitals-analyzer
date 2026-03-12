@@ -78,6 +78,7 @@ export default function Home() {
 
   const handleHistorySelect = async (id: string) => {
     await analysis.loadReport(id);
+    track("history_report_loaded", { analysis_id: id });
   };
 
   // Track analysis completion and failure
@@ -106,7 +107,13 @@ export default function Home() {
       });
     }
     if (prevState.current === "running" && analysis.state === "error") {
-      track("analysis_failed", { url: url, error: analysis.error });
+      const errMsg = analysis.error ?? "";
+      const error_type = /timed out|no progress/i.test(errMsg)
+        ? "timeout"
+        : /cancel/i.test(errMsg)
+          ? "cancelled"
+          : "api_error";
+      track("analysis_failed", { url, error: analysis.error, error_type });
     }
     prevState.current = analysis.state;
   }, [analysis.state, analysis.report, analysis.error, url]);
@@ -316,7 +323,13 @@ export default function Home() {
                 {analysis.error}
               </p>
               <button
-                onClick={handleAnalyze}
+                onClick={() => {
+                  track("error_retry_clicked", {
+                    url,
+                    error: analysis.error,
+                  });
+                  handleAnalyze();
+                }}
                 className="text-[11px] text-vecton-orange underline mt-2"
               >
                 Try again
