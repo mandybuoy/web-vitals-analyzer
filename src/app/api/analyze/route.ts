@@ -2,12 +2,7 @@
 // Returns { analysis_id } with 202 status
 
 import { NextRequest, NextResponse } from "next/server";
-import {
-  createPipeline,
-  isAnyPipelineRunning,
-  getRunningPipelineId,
-  cancelPipeline,
-} from "@/lib/pipeline-store";
+import { createPipeline } from "@/lib/pipeline-store";
 import { runPipeline } from "@/lib/pipeline";
 
 export async function POST(request: NextRequest) {
@@ -26,15 +21,6 @@ export async function POST(request: NextRequest) {
         { error: "Invalid URL format" },
         { status: 400 },
       );
-    }
-
-    // Concurrency gate: auto-cancel stale pipeline instead of hard 429
-    if (isAnyPipelineRunning()) {
-      const staleId = getRunningPipelineId();
-      if (staleId) {
-        cancelPipeline(staleId);
-        console.log(`[analyze] Auto-cancelled stale pipeline ${staleId}`);
-      }
     }
 
     const analysisId = crypto.randomUUID();

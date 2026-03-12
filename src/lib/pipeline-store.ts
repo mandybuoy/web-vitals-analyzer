@@ -46,28 +46,6 @@ if (!globalForCleanup.__pipelineCleanupInterval) {
   );
 }
 
-// ----- Concurrency Gate -----
-
-export function isAnyPipelineRunning(): boolean {
-  let running = false;
-  store.forEach((state) => {
-    if (!state.status.error && state.status.progress_pct < 100) {
-      running = true;
-    }
-  });
-  return running;
-}
-
-export function getRunningPipelineId(): string | null {
-  let foundId: string | null = null;
-  store.forEach((state, id) => {
-    if (!state.status.error && state.status.progress_pct < 100) {
-      foundId = id;
-    }
-  });
-  return foundId;
-}
-
 // ----- Pipeline State Operations -----
 
 export function createPipeline(analysisId: string): PipelineState {
