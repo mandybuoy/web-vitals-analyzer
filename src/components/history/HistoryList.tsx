@@ -33,7 +33,7 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
   if (entries.length === 0) {
     return (
       <div className="text-center py-4">
-        <p className="text-xs text-vecton-dark/30">No analyses yet</p>
+        <p className="text-xs text-vecton-dark/50">No analyses yet</p>
       </div>
     );
   }
@@ -66,14 +66,14 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
               <p className="text-xs text-vecton-dark/60 font-mono truncate max-w-[70%]">
                 {entry.url}
               </p>
-              <p className="text-[10px] text-vecton-dark/30 flex-shrink-0">
+              <p className="text-xs text-vecton-dark/50 flex-shrink-0">
                 {formatDate(entry.timestamp)}
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               {entry.mobile_score !== null && (
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono
+                  className={`text-xs px-2 py-0.5 rounded font-mono
                     ${
                       entry.mobile_score >= 90
                         ? "bg-[#0cce6b]/10 text-[#0cce6b]"
@@ -87,7 +87,7 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
               )}
               {entry.desktop_score !== null && (
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-mono
+                  className={`text-xs px-2 py-0.5 rounded font-mono
                     ${
                       entry.desktop_score >= 90
                         ? "bg-[#0cce6b]/10 text-[#0cce6b]"

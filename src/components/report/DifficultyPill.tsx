@@ -16,7 +16,7 @@ export default function DifficultyPill({
   const c = COLORS[difficulty];
   return (
     <span
-      className={`text-[10px] px-2 py-0.5 rounded uppercase tracking-wider ${c.bg} ${c.text}`}
+      className={`text-xs px-2.5 py-1 rounded uppercase tracking-wider ${c.bg} ${c.text}`}
     >
       {difficulty}
     </span>

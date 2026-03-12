@@ -29,7 +29,7 @@ function scoreBg(score: number): string {
 
 function SourceBadge({ label }: { label: string }) {
   return (
-    <span className="text-[9px] px-1.5 py-0.5 rounded bg-vecton-dark/5 text-vecton-dark/40 uppercase tracking-wider">
+    <span className="text-[11px] px-2 py-0.5 rounded bg-vecton-dark/5 text-vecton-dark/50 uppercase tracking-wider">
       {label}
     </span>
   );
@@ -47,7 +47,7 @@ function FieldDataBadge({
   };
   const labels = { FAST: "Good", AVERAGE: "Needs Work", SLOW: "Poor" };
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded ${styles[category]}`}>
+    <span className={`text-xs px-2.5 py-1 rounded ${styles[category]}`}>
       {labels[category]}
     </span>
   );
@@ -88,7 +88,7 @@ function MetricsGrid({ psi }: { psi: PSIResult }) {
           size={120}
           label="Performance"
         />
-        <p className="text-[9px] text-vecton-beige/30 mt-2">
+        <p className="text-[11px] text-vecton-beige/50 mt-2">
           Scores may vary between runs
         </p>
       </div>
@@ -110,16 +110,14 @@ function MetricsGrid({ psi }: { psi: PSIResult }) {
               <p className="text-2xl text-vecton-dark font-mono">
                 {formatMetricValue(m.metric, m.field.percentile)}
               </p>
-              <p className="text-[10px] text-vecton-dark/40 mt-1">
-                p75 field data
-              </p>
+              <p className="text-xs text-vecton-dark/50 mt-1">p75 field data</p>
             </>
           ) : (
             <>
               <p className="text-2xl text-vecton-dark font-mono">
                 {formatMetricValue(m.metric, m.value)}
               </p>
-              <p className="text-[10px] text-vecton-dark/40 mt-1">
+              <p className="text-xs text-vecton-dark/50 mt-1">
                 lab data {m.labNote ? `(${m.labNote})` : ""}
               </p>
             </>
@@ -165,7 +163,7 @@ function LabMetricsRow({ psi }: { psi: PSIResult }) {
           key={m.label}
           className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
         >
-          <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+          <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
             {m.label}
           </p>
           <p className={`text-sm font-mono ${scoreColor(m.score)}`}>
@@ -203,7 +201,7 @@ function SourceStatsRow({ stats }: { stats: SourceStats }) {
           key={s.label}
           className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
         >
-          <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+          <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
             {s.label}
           </p>
           <p className="text-sm text-vecton-dark/70 font-mono">{s.value}</p>
@@ -238,12 +236,12 @@ function DiagnosticsSection({
             <div className="flex items-start justify-between gap-2">
               <p className="text-xs text-vecton-dark/80">{d.title}</p>
               {d.displayValue && (
-                <span className="text-[10px] text-vecton-dark/40 font-mono flex-shrink-0">
+                <span className="text-xs text-vecton-dark/50 font-mono flex-shrink-0">
                   {d.displayValue}
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-vecton-dark/40 mt-1 line-clamp-2">
+            <p className="text-xs text-vecton-dark/50 mt-1 line-clamp-2">
               {d.description}
             </p>
           </div>
@@ -256,7 +254,7 @@ function DiagnosticsSection({
               track("diagnostics_expanded", { count: items.length });
             setExpanded(!expanded);
           }}
-          className="text-[11px] text-vecton-orange mt-2"
+          className="text-xs text-vecton-orange mt-2"
         >
           {expanded ? "Show less" : `Show all ${items.length} diagnostics`}
         </button>
@@ -288,13 +286,13 @@ function OpportunitiesSection({
               <p className="text-xs text-vecton-dark/80">{o.title}</p>
               {o.savings && (
                 <span
-                  className={`text-[10px] font-mono flex-shrink-0 px-1.5 py-0.5 rounded ${scoreBg(o.score ?? 0)} ${scoreColor(o.score ?? 0)}`}
+                  className={`text-xs font-mono flex-shrink-0 px-2 py-0.5 rounded ${scoreBg(o.score ?? 0)} ${scoreColor(o.score ?? 0)}`}
                 >
                   {o.savings}
                 </span>
               )}
             </div>
-            <p className="text-[10px] text-vecton-dark/40 mt-1 line-clamp-2">
+            <p className="text-xs text-vecton-dark/50 mt-1 line-clamp-2">
               {o.description}
             </p>
           </div>
@@ -322,10 +320,10 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
     >
       {/* URL & timestamp */}
       <div className="mb-6">
-        <p className="text-[11px] text-vecton-dark/60 font-mono truncate">
+        <p className="text-xs text-vecton-dark/60 font-mono truncate">
           {report.url}
         </p>
-        <p className="text-[11px] text-vecton-dark/40 mt-1">
+        <p className="text-xs text-vecton-dark/50 mt-1">
           Analyzed {new Date(report.timestamp).toLocaleString()}
         </p>
       </div>
@@ -336,7 +334,7 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
           {report.warnings.map((w, i) => (
             <div
               key={i}
-              className="text-[11px] text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-1.5 rounded"
+              className="text-xs text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-2 rounded"
             >
               {w}
             </div>
@@ -414,9 +412,7 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
                 </span>
               )}
               {!available && (
-                <span className="text-[10px] text-vecton-dark/30">
-                  unavailable
-                </span>
+                <span className="text-xs text-vecton-dark/50">unavailable</span>
               )}
             </button>
           );

@@ -15,7 +15,7 @@ body {
   font-family: "Instrument Sans", Arial, sans-serif;
   font-weight: 400;
   font-style: normal;
-  line-height: 110%;
+  line-height: 150%;
   background: #e8e9d7;
   color: #24140d;
   min-height: 100vh;
@@ -87,6 +87,17 @@ main {
 }
 .animate-fade-up {
   animation: fadeUp 0.6s ease-out forwards;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Focus arrow decorative element */

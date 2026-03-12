@@ -8,7 +8,7 @@ module.exports = {
         mono: ["JetBrains Mono", "monospace"],
       },
       lineHeight: {
-        brand: "110%",
+        brand: "150%",
       },
       colors: {
         vecton: {

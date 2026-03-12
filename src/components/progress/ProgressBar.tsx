@@ -69,7 +69,7 @@ function StageStep({
         ) : state === "active" ? (
           <div className="w-2.5 h-2.5 rounded-full bg-vecton-orange animate-progress-pulse" />
         ) : (
-          <span className="text-[10px] font-mono">{num}</span>
+          <span className="text-xs font-mono">{num}</span>
         )}
       </div>
 
@@ -81,16 +81,14 @@ function StageStep({
               ? "text-vecton-orange font-medium"
               : state === "completed"
                 ? "text-vecton-dark/70"
-                : "text-vecton-dark/30"
+                : "text-vecton-dark/50"
           }`}
         >
           {name}
         </p>
-        <p className="text-[10px] text-vecton-dark/40 truncate">{desc}</p>
+        <p className="text-xs text-vecton-dark/50 truncate">{desc}</p>
         {(state === "completed" || state === "active") && elapsed > 0 && (
-          <p className="text-[10px] text-vecton-dark/30 font-mono">
-            {elapsed}s
-          </p>
+          <p className="text-xs text-vecton-dark/50 font-mono">{elapsed}s</p>
         )}
       </div>
     </div>
@@ -145,20 +143,20 @@ function SubTaskRow({
       </div>
       {/* Label + time */}
       <span
-        className={`text-[11px] font-mono ${
+        className={`text-xs font-mono ${
           status === "running"
             ? "text-vecton-orange"
             : status === "done"
               ? "text-vecton-dark/60"
               : status === "failed"
                 ? "text-[#ff4e42]/70"
-                : "text-vecton-dark/25"
+                : "text-vecton-dark/40"
         }`}
       >
         {label}
       </span>
       {(status === "running" || status === "done") && elapsed > 0 && (
-        <span className="text-[10px] text-vecton-dark/30 font-mono">
+        <span className="text-xs text-vecton-dark/50 font-mono">
           {elapsed}s
         </span>
       )}
@@ -174,7 +172,7 @@ function CollectionSplitView({ status }: { status: PipelineStatus }) {
     <div className="grid grid-cols-2 gap-4 mb-4 p-3 rounded bg-vecton-dark/[0.03] border border-vecton-dark/5">
       {/* PSI side */}
       <div>
-        <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-2">
+        <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-2">
           Google PSI
         </p>
         <div className="space-y-1.5">
@@ -192,7 +190,7 @@ function CollectionSplitView({ status }: { status: PipelineStatus }) {
           />
         </div>
         {cp.psi_detail && (
-          <p className="text-[9px] text-vecton-orange/60 font-mono mt-1.5 animate-pulse">
+          <p className="text-[11px] text-vecton-orange/60 font-mono mt-1.5 animate-pulse">
             {cp.psi_detail}
           </p>
         )}
@@ -200,7 +198,7 @@ function CollectionSplitView({ status }: { status: PipelineStatus }) {
 
       {/* HTML side */}
       <div className="border-l border-vecton-dark/8 pl-4">
-        <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-2">
+        <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-2">
           HTML Analysis
         </p>
         <div className="space-y-1.5">
@@ -298,7 +296,7 @@ export default function ProgressBar({
 
         {/* Detail / retry info */}
         {status.detail && (
-          <p className="text-[10px] text-vecton-orange/70 font-mono mb-2 animate-pulse">
+          <p className="text-xs text-vecton-orange/70 font-mono mb-2 animate-pulse">
             {status.detail}
           </p>
         )}
@@ -307,7 +305,7 @@ export default function ProgressBar({
         <div className="flex justify-end items-center">
           <button
             onClick={onCancel}
-            className="text-[11px] text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors"
+            className="text-xs text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors"
           >
             Cancel
           </button>

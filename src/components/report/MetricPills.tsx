@@ -14,7 +14,7 @@ export default function MetricPills({ metrics }: { metrics: MetricName[] }) {
       {metrics.map((m) => (
         <span
           key={m}
-          className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${COLORS[m]}`}
+          className={`text-xs px-2 py-0.5 rounded font-mono ${COLORS[m]}`}
         >
           {m}
         </span>

@@ -70,13 +70,13 @@ export default function ScoreGauge({
           >
             {Math.round(score)}
           </span>
-          <span className="text-[9px] text-vecton-beige/50 mt-0.5 uppercase tracking-widest">
+          <span className="text-[11px] text-vecton-beige/60 mt-0.5 uppercase tracking-widest">
             {getLabel(score)}
           </span>
         </div>
       </div>
       {label && (
-        <span className="text-[11px] text-vecton-beige/60 tracking-widest uppercase">
+        <span className="text-xs text-vecton-beige/60 tracking-widest uppercase">
           {label}
         </span>
       )}

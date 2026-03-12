@@ -24,7 +24,7 @@ export default function ReportTabBar({ active, onChange }: ReportTabBarProps) {
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`px-4 py-2 text-xs uppercase tracking-wider rounded-t-lg border border-b-0 transition-colors whitespace-nowrap
+            className={`px-4 py-2.5 text-xs uppercase tracking-wider rounded-t-lg border border-b-0 transition-colors whitespace-nowrap
               ${
                 isActive
                   ? "bg-white/50 text-vecton-dark border-vecton-dark/10 font-medium"

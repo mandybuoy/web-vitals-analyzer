@@ -31,25 +31,25 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-vecton-dark/10">
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3 w-8">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3 w-8">
                 #
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Fix
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Affects
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Severity
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Difficulty
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Evidence
               </th>
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Est. Improvement
               </th>
             </tr>
@@ -76,7 +76,7 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
                 <td className="p-3">
                   {fix.evidence_basis && (
                     <span
-                      className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                      className={`text-[11px] px-2 py-0.5 rounded font-mono ${
                         EVIDENCE_STYLES[fix.evidence_basis] ?? ""
                       }`}
                     >
@@ -108,7 +108,7 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
               <DifficultyPill difficulty={fix.difficulty} />
               {fix.evidence_basis && (
                 <span
-                  className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                  className={`text-[11px] px-2 py-0.5 rounded font-mono ${
                     EVIDENCE_STYLES[fix.evidence_basis] ?? ""
                   }`}
                 >
@@ -119,7 +119,7 @@ export default function PriorityTab({ fixes }: PriorityTabProps) {
             <p className="text-xs text-vecton-dark/70 mb-2">{fix.fix}</p>
             <div className="flex items-center justify-between">
               <MetricPills metrics={fix.affects} />
-              <span className="text-[10px] text-vecton-dark/50 font-mono">
+              <span className="text-xs text-vecton-dark/50 font-mono">
                 {fix.estimated_improvement}
               </span>
             </div>

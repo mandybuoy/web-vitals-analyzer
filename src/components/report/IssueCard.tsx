@@ -61,7 +61,7 @@ export default function IssueCard({
         <span className="flex-1 text-sm text-vecton-dark/80">{issue.name}</span>
         <div className="flex items-center gap-2">
           {isObservation ? (
-            <span className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wider bg-blue-500/10 text-blue-600">
+            <span className="text-xs px-2.5 py-1 rounded uppercase tracking-wider bg-blue-500/10 text-blue-600">
               info
             </span>
           ) : (
@@ -83,7 +83,7 @@ export default function IssueCard({
             </p>
             {!isObservation && (
               <div className="p-3 rounded bg-vecton-orange/5 border border-vecton-orange/10">
-                <p className="text-[10px] text-vecton-orange/60 uppercase tracking-wider mb-1">
+                <p className="text-xs text-vecton-orange/60 uppercase tracking-wider mb-1">
                   Fix
                 </p>
                 <p className="text-xs text-vecton-dark/70 font-mono whitespace-pre-wrap">
@@ -93,7 +93,7 @@ export default function IssueCard({
             )}
             {!isObservation && issue.trade_off && (
               <div className="mt-2 p-3 rounded bg-amber-50 border border-amber-200/30">
-                <p className="text-[10px] text-amber-700/60 uppercase tracking-wider mb-1">
+                <p className="text-xs text-amber-700/60 uppercase tracking-wider mb-1">
                   Trade-off
                 </p>
                 <p className="text-xs text-amber-800/70 font-mono whitespace-pre-wrap">
@@ -104,12 +104,12 @@ export default function IssueCard({
             {issue.code_example && (
               <div className="mt-2">
                 {issue.is_generic_example === true && (
-                  <p className="text-[10px] text-amber-600/70 mb-1 italic">
+                  <p className="text-xs text-amber-600/70 mb-1 italic">
                     Generic pattern — actual implementation may vary
                   </p>
                 )}
                 <div className="p-3 rounded bg-vecton-dark border border-vecton-dark/20 overflow-x-auto">
-                  <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-1.5">
                     Code
                   </p>
                   <pre className="text-xs text-green-300/90 font-mono whitespace-pre-wrap leading-relaxed">
@@ -121,13 +121,13 @@ export default function IssueCard({
             {(issue.impact_metric || issue.evidence_basis) && (
               <div className="flex items-center gap-3 mt-2">
                 {issue.impact_metric && (
-                  <p className="text-[10px] text-vecton-dark/40 font-mono">
+                  <p className="text-xs text-vecton-dark/50 font-mono">
                     Impact: {issue.impact_metric}
                   </p>
                 )}
                 {issue.evidence_basis && (
                   <span
-                    className={`text-[9px] px-1.5 py-0.5 rounded font-mono ${
+                    className={`text-[11px] px-2 py-0.5 rounded font-mono ${
                       EVIDENCE_STYLES[issue.evidence_basis] ?? ""
                     }`}
                   >
