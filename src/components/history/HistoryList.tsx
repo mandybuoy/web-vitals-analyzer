@@ -1,6 +1,7 @@
 "use client";
 
 import type { HistoryEntry, VitalRating } from "@/lib/types";
+import { track } from "@/lib/analytics";
 import RatingPill from "../report/RatingPill";
 
 interface HistoryListProps {
@@ -52,7 +53,13 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
         {visible.map((entry) => (
           <button
             key={entry.analysis_id}
-            onClick={() => onSelect(entry.analysis_id)}
+            onClick={() => {
+              track("history_item_clicked", {
+                analysis_id: entry.analysis_id,
+                url: entry.url,
+              });
+              onSelect(entry.analysis_id);
+            }}
             className="w-full text-left p-3 rounded-lg bg-white/30 border border-vecton-dark/5 hover:bg-white/50 hover:border-vecton-dark/10 transition-colors"
           >
             <div className="flex items-center justify-between mb-1.5">

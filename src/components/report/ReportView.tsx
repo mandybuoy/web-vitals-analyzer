@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { AnalysisReport } from "@/lib/types";
+import { track } from "@/lib/analytics";
 import SummaryCards from "./SummaryCards";
 import ReportTabBar, { type ReportTab } from "./ReportTabBar";
 import MetricTab from "./MetricTab";
@@ -66,7 +67,10 @@ export default function ReportView({ report }: ReportViewProps) {
             <button
               key={tab}
               onClick={() => {
-                if (available) setActiveDevice(tab);
+                if (available) {
+                  track("device_toggled", { device: tab });
+                  setActiveDevice(tab);
+                }
               }}
               disabled={!available}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all
@@ -135,7 +139,13 @@ export default function ReportView({ report }: ReportViewProps) {
           <SummaryCards device={device} sourceStats={report.source_stats} />
 
           <div className="mt-8">
-            <ReportTabBar active={activeTab} onChange={setActiveTab} />
+            <ReportTabBar
+              active={activeTab}
+              onChange={(tab) => {
+                track("report_tab_viewed", { tab });
+                setActiveTab(tab);
+              }}
+            />
             <div className="p-4 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px]">
               {activeTab === "inp" && (
                 <MetricTab
