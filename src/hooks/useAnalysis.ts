@@ -101,37 +101,23 @@ export function useAnalysis(): UseAnalysisReturn {
     enabled: polling && !!analysisId,
   });
 
-  const start = useCallback(
-    async (url: string, psiOnly?: boolean) => {
-      // Cancel any existing analysis to avoid 429
-      if (analysisId) {
-        try {
-          await api.cancelAnalysis(analysisId);
-        } catch {
-          // Best effort
-        }
-      }
+  const start = useCallback(async (url: string, psiOnly?: boolean) => {
+    // Reset state
+    setError(null);
+    setReport(null);
+    setStatus(null);
+    setState("running");
 
-      // Reset state
-      setError(null);
-      setReport(null);
-      setStatus(null);
-      setState("running");
-
-      try {
-        const { analysis_id } = await api.startAnalysis(url, psiOnly);
-        setAnalysisId(analysis_id);
-        lastProgressRef.current = { pct: 0, time: Date.now() };
-        setPolling(true);
-      } catch (err) {
-        setState("error");
-        setError(
-          err instanceof Error ? err.message : "Failed to start analysis",
-        );
-      }
-    },
-    [analysisId],
-  );
+    try {
+      const { analysis_id } = await api.startAnalysis(url, psiOnly);
+      setAnalysisId(analysis_id);
+      lastProgressRef.current = { pct: 0, time: Date.now() };
+      setPolling(true);
+    } catch (err) {
+      setState("error");
+      setError(err instanceof Error ? err.message : "Failed to start analysis");
+    }
+  }, []);
 
   const cancel = useCallback(async () => {
     setPolling(false);
