@@ -32,6 +32,7 @@ import {
   setComplete,
   setInMemoryReport,
   getAbortSignal,
+  updateCollectionProgress,
 } from "./pipeline-store";
 
 // ----- Zod Schemas -----
@@ -259,10 +260,32 @@ export async function runPipeline(
     const extractionModel =
       getSetting("extraction_model") ?? DEFAULT_EXTRACTION_MODEL;
 
-    // Chain extraction off HTML fetch — starts as soon as HTML arrives,
-    // overlapping with PSI fetches that are typically slower
-    const htmlAndExtractionPromise = fetchHTML(url)
-      .then(async (html) => {
+    // HTML fetch + extraction with per-step tracking
+    updateCollectionProgress(analysisId, {
+      html_fetch: "running",
+      html_fetch_start: new Date().toISOString(),
+    });
+    const htmlAndExtractionPromise = (async () => {
+      let html;
+      try {
+        html = await fetchHTML(url);
+        updateCollectionProgress(analysisId, {
+          html_fetch: "done",
+          html_fetch_end: new Date().toISOString(),
+        });
+      } catch (err) {
+        console.warn("[pipeline] HTML fetch failed:", err);
+        updateCollectionProgress(analysisId, {
+          html_fetch: "failed",
+          html_fetch_end: new Date().toISOString(),
+        });
+        return null;
+      }
+      try {
+        updateCollectionProgress(analysisId, {
+          html_extract: "running",
+          html_extract_start: new Date().toISOString(),
+        });
         const { system, user } = buildExtractionPrompt(
           html.head,
           html.fullHtml,
@@ -276,12 +299,20 @@ export async function runPipeline(
           tier: "extraction",
           signal: getAbortSignal(analysisId),
         });
+        updateCollectionProgress(analysisId, {
+          html_extract: "done",
+          html_extract_end: new Date().toISOString(),
+        });
         return { html, extracted: result.data };
-      })
-      .catch((err) => {
-        console.warn("[pipeline] HTML fetch/extraction failed:", err);
+      } catch (err) {
+        console.warn("[pipeline] HTML extraction failed:", err);
+        updateCollectionProgress(analysisId, {
+          html_extract: "failed",
+          html_extract_end: new Date().toISOString(),
+        });
         return null;
-      });
+      }
+    })();
 
     const psiRetryHandler = (device: string) => ({
       onRetry: (attempt: number, max: number, reason: string) => {
@@ -290,10 +321,9 @@ export async function runPipeline(
           : /timeout|abort/i.test(reason)
             ? "timed out"
             : "error";
-        setDetail(
-          analysisId,
-          `Retrying ${device} PSI (${attempt}/${max}) — ${short}`,
-        );
+        updateCollectionProgress(analysisId, {
+          psi_detail: `Retrying ${device} (${attempt}/${max}) — ${short}`,
+        });
       },
     });
 
@@ -319,31 +349,77 @@ export async function runPipeline(
         console.log(
           `[pipeline] Both PSI failed, cooling down ${PIPELINE_COOLDOWN_MS / 1000}s before attempt ${pipelineAttempt + 1}/3...`,
         );
-        setDetail(analysisId, "Waiting 15s before retry...");
+        updateCollectionProgress(analysisId, {
+          psi_detail: "Waiting 15s before retry...",
+          psi_desktop: "pending",
+          psi_mobile: "pending",
+        });
         await new Promise((resolve) =>
           setTimeout(resolve, PIPELINE_COOLDOWN_MS),
         );
         checkAbort(analysisId);
-        setDetail(
-          analysisId,
-          `Retrying analysis (attempt ${pipelineAttempt + 1}/3)...`,
-        );
+        updateCollectionProgress(analysisId, {
+          psi_detail: `Retrying (attempt ${pipelineAttempt + 1}/3)...`,
+        });
       }
+
+      // Track desktop start
+      updateCollectionProgress(analysisId, {
+        psi_desktop: "running",
+        psi_desktop_start: new Date().toISOString(),
+      });
 
       const delayedMobile = new Promise<PSIResult>((resolve, reject) => {
         setTimeout(() => {
+          updateCollectionProgress(analysisId, {
+            psi_mobile: "running",
+            psi_mobile_start: new Date().toISOString(),
+          });
           fetchPSI(url, "mobile", psiApiKey, psiRetryHandler("mobile"))
-            .then(resolve)
-            .catch(reject);
+            .then((result) => {
+              updateCollectionProgress(analysisId, {
+                psi_mobile: "done",
+                psi_mobile_end: new Date().toISOString(),
+              });
+              resolve(result);
+            })
+            .catch((err) => {
+              updateCollectionProgress(analysisId, {
+                psi_mobile: "failed",
+                psi_mobile_end: new Date().toISOString(),
+              });
+              reject(err);
+            });
         }, PSI_STAGGER_MS);
       });
 
+      const trackedDesktop = fetchPSI(
+        url,
+        "desktop",
+        psiApiKey,
+        psiRetryHandler("desktop"),
+      )
+        .then((result) => {
+          updateCollectionProgress(analysisId, {
+            psi_desktop: "done",
+            psi_desktop_end: new Date().toISOString(),
+          });
+          return result;
+        })
+        .catch((err) => {
+          updateCollectionProgress(analysisId, {
+            psi_desktop: "failed",
+            psi_desktop_end: new Date().toISOString(),
+          });
+          throw err;
+        });
+
       const [desktopResult, mobileResult] = await Promise.allSettled([
-        fetchPSI(url, "desktop", psiApiKey, psiRetryHandler("desktop")),
+        trackedDesktop,
         delayedMobile,
       ]);
 
-      setDetail(analysisId, undefined);
+      updateCollectionProgress(analysisId, { psi_detail: undefined });
 
       desktopPsi =
         desktopResult.status === "fulfilled" ? desktopResult.value : null;
@@ -360,7 +436,11 @@ export async function runPipeline(
       // If one device failed, retry it sequentially (cache warmed by the other)
       if (!mobilePsi && desktopPsi) {
         checkAbort(analysisId);
-        setDetail(analysisId, "Retrying mobile PSI...");
+        updateCollectionProgress(analysisId, {
+          psi_mobile: "running",
+          psi_mobile_start: new Date().toISOString(),
+          psi_detail: "Retrying mobile...",
+        });
         try {
           mobilePsi = await fetchPSI(
             url,
@@ -368,13 +448,25 @@ export async function runPipeline(
             psiApiKey,
             psiRetryHandler("mobile"),
           );
+          updateCollectionProgress(analysisId, {
+            psi_mobile: "done",
+            psi_mobile_end: new Date().toISOString(),
+          });
         } catch (err) {
           console.warn("[pipeline] Mobile PSI sequential retry failed:", err);
+          updateCollectionProgress(analysisId, {
+            psi_mobile: "failed",
+            psi_mobile_end: new Date().toISOString(),
+          });
         }
-        setDetail(analysisId, undefined);
+        updateCollectionProgress(analysisId, { psi_detail: undefined });
       } else if (!desktopPsi && mobilePsi) {
         checkAbort(analysisId);
-        setDetail(analysisId, "Retrying desktop PSI...");
+        updateCollectionProgress(analysisId, {
+          psi_desktop: "running",
+          psi_desktop_start: new Date().toISOString(),
+          psi_detail: "Retrying desktop...",
+        });
         try {
           desktopPsi = await fetchPSI(
             url,
@@ -382,10 +474,18 @@ export async function runPipeline(
             psiApiKey,
             psiRetryHandler("desktop"),
           );
+          updateCollectionProgress(analysisId, {
+            psi_desktop: "done",
+            psi_desktop_end: new Date().toISOString(),
+          });
         } catch (err) {
           console.warn("[pipeline] Desktop PSI sequential retry failed:", err);
+          updateCollectionProgress(analysisId, {
+            psi_desktop: "failed",
+            psi_desktop_end: new Date().toISOString(),
+          });
         }
-        setDetail(analysisId, undefined);
+        updateCollectionProgress(analysisId, { psi_detail: undefined });
       }
 
       // At least one device succeeded → continue pipeline
@@ -425,8 +525,10 @@ export async function runPipeline(
       htmlExtraction?.extracted ?? null;
     let sourceStats: SourceStats = EMPTY_SOURCE_STATS;
 
+    let sourceStatsSource: "html_extraction" | "psi_fallback" = "psi_fallback";
     if (extractedSignals) {
       sourceStats = extractedSignalsToSourceStats(extractedSignals);
+      sourceStatsSource = "html_extraction";
     } else {
       // Fallback: extract partial source stats from PSI data
       const fallbackPsi = mobilePsi ?? desktopPsi;
@@ -448,6 +550,7 @@ export async function runPipeline(
         psi_only: true,
         mobile_psi: mobilePsi ?? undefined,
         desktop_psi: desktopPsi ?? undefined,
+        source_stats_source: sourceStatsSource,
       };
 
       setInMemoryReport(analysisId, report);
@@ -539,6 +642,7 @@ export async function runPipeline(
       mobile: mobileReport,
       desktop: desktopReport,
       warnings,
+      source_stats_source: sourceStatsSource,
     };
 
     // Write to SQLite FIRST, then update progress (prevents race condition)
