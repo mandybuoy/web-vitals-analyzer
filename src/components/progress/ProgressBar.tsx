@@ -170,10 +170,7 @@ export default function ProgressBar({
         )}
 
         {/* Cancel button */}
-        <div className="flex justify-between items-center">
-          <p className="text-[10px] text-vecton-dark/40">
-            {status.progress_pct}% complete
-          </p>
+        <div className="flex justify-end items-center">
           <button
             onClick={onCancel}
             className="text-[11px] text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors"

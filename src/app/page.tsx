@@ -201,6 +201,11 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Concurrency note */}
+        <p className="text-[10px] text-vecton-dark/30 text-center -mt-4 mb-6">
+          Only one analysis runs at a time
+        </p>
+
         {/* Progress */}
         {isRunning && analysis.status && (
           <div className="max-w-2xl mx-auto mb-8">

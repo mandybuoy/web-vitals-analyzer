@@ -73,12 +73,15 @@ function MetricsGrid({ psi }: { psi: PSIResult }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
       {/* Score gauge */}
-      <div className="p-6 rounded-lg bg-vecton-dark border border-vecton-beige/6 flex items-center justify-center">
+      <div className="p-6 rounded-lg bg-vecton-dark border border-vecton-beige/6 flex flex-col items-center justify-center">
         <ScoreGauge
           score={Math.round(psi.overallScore)}
           size={120}
           label="Performance"
         />
+        <p className="text-[9px] text-vecton-beige/30 mt-2">
+          Scores may vary between runs
+        </p>
       </div>
 
       {/* CWV cards */}
