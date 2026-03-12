@@ -26,6 +26,14 @@ function scoreBg(score: number): string {
   return "bg-[#ff4e42]/10";
 }
 
+function SourceBadge({ label }: { label: string }) {
+  return (
+    <span className="text-[9px] px-1.5 py-0.5 rounded bg-vecton-dark/5 text-vecton-dark/40 uppercase tracking-wider">
+      {label}
+    </span>
+  );
+}
+
 function FieldDataBadge({
   category,
 }: {
@@ -410,9 +418,30 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
       {/* Report content */}
       {psi ? (
         <div className="space-y-6">
-          <MetricsGrid psi={psi} />
-          <LabMetricsRow psi={psi} />
-          <SourceStatsRow stats={report.source_stats} />
+          {/* PSI metrics */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <SourceBadge label="Google PSI" />
+            </div>
+            <MetricsGrid psi={psi} />
+            <LabMetricsRow psi={psi} />
+          </div>
+
+          {/* Source stats */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <SourceBadge
+                label={
+                  report.source_stats_source === "html_extraction"
+                    ? "HTML Analysis"
+                    : "PSI Fallback"
+                }
+              />
+            </div>
+            <SourceStatsRow stats={report.source_stats} />
+          </div>
+
+          {/* Opportunities & Diagnostics */}
           <OpportunitiesSection opportunities={psi.opportunities} />
           <DiagnosticsSection diagnostics={psi.diagnostics} />
         </div>

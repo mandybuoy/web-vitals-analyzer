@@ -1,6 +1,11 @@
 // In-memory pipeline state store (survives Next.js hot-reloads via globalThis)
 
-import type { PipelineStatus, StageTimestamps, AnalysisReport } from "./types";
+import type {
+  PipelineStatus,
+  StageTimestamps,
+  AnalysisReport,
+  CollectionProgress,
+} from "./types";
 
 export interface PipelineState {
   status: PipelineStatus;
@@ -75,6 +80,12 @@ export function createPipeline(analysisId: string): PipelineState {
       stage_timestamps: {
         stage_1_start: new Date().toISOString(),
       },
+      collection_progress: {
+        psi_desktop: "pending",
+        psi_mobile: "pending",
+        html_fetch: "pending",
+        html_extract: "pending",
+      },
     },
     abortController: new AbortController(),
     createdAt: Date.now(),
@@ -133,6 +144,24 @@ export function setDetail(
   const state = store.get(analysisId);
   if (!state) return;
   state.status.detail = detail;
+}
+
+export function updateCollectionProgress(
+  analysisId: string,
+  updates: Partial<CollectionProgress>,
+): void {
+  const state = store.get(analysisId);
+  if (!state || !state.status.collection_progress) return;
+  Object.assign(state.status.collection_progress, updates);
+
+  // Auto-update progress_pct: 25% per completed sub-task
+  const cp = state.status.collection_progress;
+  let done = 0;
+  if (cp.psi_desktop === "done" || cp.psi_desktop === "failed") done++;
+  if (cp.psi_mobile === "done" || cp.psi_mobile === "failed") done++;
+  if (cp.html_fetch === "done" || cp.html_fetch === "failed") done++;
+  if (cp.html_extract === "done" || cp.html_extract === "failed") done++;
+  state.status.progress_pct = done * 25;
 }
 
 export function setError(analysisId: string, error: string): void {

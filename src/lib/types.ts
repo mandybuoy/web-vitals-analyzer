@@ -267,6 +267,27 @@ export interface AnalysisReport {
   psi_only?: boolean;
   mobile_psi?: PSIResult;
   desktop_psi?: PSIResult;
+  source_stats_source?: "html_extraction" | "psi_fallback";
+}
+
+// ----- Collection Sub-Stage Tracking -----
+
+export type SubStageStatus = "pending" | "running" | "done" | "failed";
+
+export interface CollectionProgress {
+  psi_desktop: SubStageStatus;
+  psi_desktop_start?: string;
+  psi_desktop_end?: string;
+  psi_mobile: SubStageStatus;
+  psi_mobile_start?: string;
+  psi_mobile_end?: string;
+  psi_detail?: string;
+  html_fetch: SubStageStatus;
+  html_fetch_start?: string;
+  html_fetch_end?: string;
+  html_extract: SubStageStatus;
+  html_extract_start?: string;
+  html_extract_end?: string;
 }
 
 // ----- Pipeline Status -----
@@ -297,6 +318,7 @@ export interface PipelineStatus {
   detail?: string; // e.g. "Retrying mobile PSI (2/4)..."
   error?: string;
   stage_timestamps: StageTimestamps;
+  collection_progress?: CollectionProgress;
 }
 
 // ----- History -----

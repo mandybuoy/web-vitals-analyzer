@@ -1,6 +1,10 @@
 "use client";
 
-import type { PipelineStatus, StageTimestamps } from "@/lib/types";
+import type {
+  PipelineStatus,
+  StageTimestamps,
+  SubStageStatus,
+} from "@/lib/types";
 import { useElapsedTime } from "@/hooks/useElapsedTime";
 
 interface ProgressBarProps {
@@ -93,6 +97,131 @@ function StageStep({
   );
 }
 
+function SubTaskRow({
+  label,
+  status,
+  startTime,
+  endTime,
+}: {
+  label: string;
+  status: SubStageStatus;
+  startTime?: string;
+  endTime?: string;
+}) {
+  const elapsed = useElapsedTime(startTime, endTime);
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Status icon */}
+      <div className="w-4 h-4 flex items-center justify-center flex-shrink-0">
+        {status === "done" ? (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#0cce6b"
+            strokeWidth="3"
+          >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : status === "running" ? (
+          <div className="w-2 h-2 rounded-full bg-vecton-orange animate-progress-pulse" />
+        ) : status === "failed" ? (
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#ff4e42"
+            strokeWidth="3"
+          >
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        ) : (
+          <div className="w-1.5 h-1.5 rounded-full bg-vecton-dark/20" />
+        )}
+      </div>
+      {/* Label + time */}
+      <span
+        className={`text-[11px] font-mono ${
+          status === "running"
+            ? "text-vecton-orange"
+            : status === "done"
+              ? "text-vecton-dark/60"
+              : status === "failed"
+                ? "text-[#ff4e42]/70"
+                : "text-vecton-dark/25"
+        }`}
+      >
+        {label}
+      </span>
+      {(status === "running" || status === "done") && elapsed > 0 && (
+        <span className="text-[10px] text-vecton-dark/30 font-mono">
+          {elapsed}s
+        </span>
+      )}
+    </div>
+  );
+}
+
+function CollectionSplitView({ status }: { status: PipelineStatus }) {
+  const cp = status.collection_progress;
+  if (!cp) return null;
+
+  return (
+    <div className="grid grid-cols-2 gap-4 mb-4 p-3 rounded bg-vecton-dark/[0.03] border border-vecton-dark/5">
+      {/* PSI side */}
+      <div>
+        <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-2">
+          Google PSI
+        </p>
+        <div className="space-y-1.5">
+          <SubTaskRow
+            label="Desktop"
+            status={cp.psi_desktop}
+            startTime={cp.psi_desktop_start}
+            endTime={cp.psi_desktop_end}
+          />
+          <SubTaskRow
+            label="Mobile"
+            status={cp.psi_mobile}
+            startTime={cp.psi_mobile_start}
+            endTime={cp.psi_mobile_end}
+          />
+        </div>
+        {cp.psi_detail && (
+          <p className="text-[9px] text-vecton-orange/60 font-mono mt-1.5 animate-pulse">
+            {cp.psi_detail}
+          </p>
+        )}
+      </div>
+
+      {/* HTML side */}
+      <div className="border-l border-vecton-dark/8 pl-4">
+        <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-2">
+          HTML Analysis
+        </p>
+        <div className="space-y-1.5">
+          <SubTaskRow
+            label="Fetch"
+            status={cp.html_fetch}
+            startTime={cp.html_fetch_start}
+            endTime={cp.html_fetch_end}
+          />
+          <SubTaskRow
+            label="Extract"
+            status={cp.html_extract}
+            startTime={cp.html_extract_start}
+            endTime={cp.html_extract_end}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProgressBar({
   status,
   onCancel,
@@ -153,6 +282,11 @@ export default function ProgressBar({
             />
           ))}
         </div>
+
+        {/* Collection split view (Stage 1 only) */}
+        {currentStage === 1 && status.collection_progress && (
+          <CollectionSplitView status={status} />
+        )}
 
         {/* Progress bar */}
         <div className="w-full bg-vecton-dark/10 rounded-full h-1.5 mb-3">
