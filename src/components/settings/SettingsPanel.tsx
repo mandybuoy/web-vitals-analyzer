@@ -172,24 +172,24 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 </h3>
                 <div className="space-y-3">
                   <div className="p-3 rounded-lg bg-white/50 border border-vecton-dark/10">
-                    <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+                    <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
                       Google PSI
                     </p>
                     <p className="text-xs text-vecton-dark/70 font-mono">
                       {settings.google_key_status}
                     </p>
-                    <p className="text-[10px] text-vecton-dark/30 mt-1">
+                    <p className="text-xs text-vecton-dark/50 mt-1">
                       Set via .env file
                     </p>
                   </div>
                   <div className="p-3 rounded-lg bg-white/50 border border-vecton-dark/10">
-                    <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+                    <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
                       Anthropic
                     </p>
                     <p className="text-xs text-vecton-dark/70 font-mono">
                       {settings.openrouter_key_status}
                     </p>
-                    <p className="text-[10px] text-vecton-dark/30 mt-1">
+                    <p className="text-xs text-vecton-dark/50 mt-1">
                       Set via .env file
                     </p>
                   </div>
@@ -203,7 +203,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider block mb-1">
+                    <label className="text-xs text-vecton-dark/50 uppercase tracking-wider block mb-1">
                       Extraction (HTML analysis)
                     </label>
                     <select
@@ -219,7 +219,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     </select>
                   </div>
                   <div>
-                    <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider block mb-1">
+                    <label className="text-xs text-vecton-dark/50 uppercase tracking-wider block mb-1">
                       Intelligence (deep analysis)
                     </label>
                     <select
@@ -279,7 +279,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     )}
 
                     {promptsError && (
-                      <div className="p-2 rounded bg-[#ff4e42]/8 border border-[#ff4e42]/15 text-[10px] text-[#ff4e42]">
+                      <div className="p-2 rounded bg-[#ff4e42]/8 border border-[#ff4e42]/15 text-xs text-[#ff4e42]">
                         {promptsError}
                       </div>
                     )}
@@ -289,7 +289,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                         {/* Extraction prompt */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider">
+                            <label className="text-xs text-vecton-dark/50 uppercase tracking-wider">
                               Extraction (HTML analysis)
                             </label>
                             {prompts.is_extraction_custom && (
@@ -297,7 +297,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                                 onClick={() =>
                                   handleResetPrompt("extraction_system_prompt")
                                 }
-                                className="text-[9px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
+                                className="text-[11px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
                               >
                                 Reset to default
                               </button>
@@ -309,11 +309,11 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                               setExtractionPrompt(e.target.value)
                             }
                             rows={12}
-                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-[11px] text-vecton-dark/70 font-mono leading-relaxed resize-y"
+                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-xs text-vecton-dark/70 font-mono leading-relaxed resize-y"
                             spellCheck={false}
                           />
                           {prompts.is_extraction_custom && (
-                            <p className="text-[9px] text-vecton-orange/50 mt-0.5">
+                            <p className="text-[11px] text-vecton-orange/60 mt-0.5">
                               Custom prompt active
                             </p>
                           )}
@@ -322,7 +322,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                         {/* Tier 2 prompt */}
                         <div>
                           <div className="flex items-center justify-between mb-1">
-                            <label className="text-[10px] text-vecton-dark/40 uppercase tracking-wider">
+                            <label className="text-xs text-vecton-dark/50 uppercase tracking-wider">
                               Intelligence (deep analysis)
                             </label>
                             {prompts.is_tier2_custom && (
@@ -330,7 +330,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                                 onClick={() =>
                                   handleResetPrompt("tier2_system_prompt")
                                 }
-                                className="text-[9px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
+                                className="text-[11px] text-vecton-orange hover:text-vecton-orange/80 transition-colors"
                               >
                                 Reset to default
                               </button>
@@ -340,11 +340,11 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                             value={tier2Prompt}
                             onChange={(e) => setTier2Prompt(e.target.value)}
                             rows={15}
-                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-[11px] text-vecton-dark/70 font-mono leading-relaxed resize-y"
+                            className="w-full p-3 rounded bg-white/50 border border-vecton-dark/10 text-xs text-vecton-dark/70 font-mono leading-relaxed resize-y"
                             spellCheck={false}
                           />
                           {prompts.is_tier2_custom && (
-                            <p className="text-[9px] text-vecton-orange/50 mt-0.5">
+                            <p className="text-[11px] text-vecton-orange/60 mt-0.5">
                               Custom prompt active
                             </p>
                           )}
@@ -396,7 +396,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                 {showCosts && (
                   <div className="space-y-3">
                     <div className="p-3 rounded-lg bg-vecton-orange/5 border border-vecton-orange/10">
-                      <p className="text-[10px] text-vecton-orange/60 uppercase tracking-wider mb-1">
+                      <p className="text-xs text-vecton-orange/60 uppercase tracking-wider mb-1">
                         Total Spend
                       </p>
                       <p className="text-lg text-vecton-dark font-mono">
@@ -411,13 +411,13 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                           .map((entry, i) => (
                             <div
                               key={i}
-                              className="flex items-center justify-between p-2 rounded bg-white/30 text-[10px]"
+                              className="flex items-center justify-between p-2 rounded bg-white/30 text-xs"
                             >
                               <div>
                                 <span className="text-vecton-dark/50 font-mono">
                                   {entry.model.split("/").pop()}
                                 </span>
-                                <span className="text-vecton-dark/30 ml-2">
+                                <span className="text-vecton-dark/50 ml-2">
                                   {entry.tier}
                                 </span>
                               </div>

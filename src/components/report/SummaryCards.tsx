@@ -82,7 +82,7 @@ export default function SummaryCards({
                 <p className="text-2xl text-vecton-dark font-mono">
                   {formatMetricValue(m.metric, m.field.p75)}
                 </p>
-                <p className="text-[10px] text-vecton-dark/40 mt-1">
+                <p className="text-xs text-vecton-dark/50 mt-1">
                   p75 field data
                 </p>
               </>
@@ -91,7 +91,7 @@ export default function SummaryCards({
                 <p className="text-2xl text-vecton-dark font-mono">
                   {formatMetricValue(m.metric, m.labValue)}
                 </p>
-                <p className="text-[10px] text-vecton-dark/40 mt-1">
+                <p className="text-xs text-vecton-dark/50 mt-1">
                   lab data {m.label === "INP" ? "(TBT proxy)" : ""}
                 </p>
               </>
@@ -111,7 +111,7 @@ export default function SummaryCards({
               key={s.label}
               className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
             >
-              <p className="text-[10px] text-vecton-dark/40 uppercase tracking-wider mb-1">
+              <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
                 {s.label}
               </p>
               <p className="text-sm text-vecton-dark/70 font-mono">{s.value}</p>

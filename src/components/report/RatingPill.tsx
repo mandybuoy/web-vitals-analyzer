@@ -16,7 +16,7 @@ const COLORS: Record<VitalRating, { bg: string; text: string; label: string }> =
 export default function RatingPill({ rating }: { rating: VitalRating }) {
   const c = COLORS[rating];
   return (
-    <span className={`text-[10px] px-2 py-0.5 rounded ${c.bg} ${c.text}`}>
+    <span className={`text-xs px-2.5 py-1 rounded ${c.bg} ${c.text}`}>
       {c.label}
     </span>
   );

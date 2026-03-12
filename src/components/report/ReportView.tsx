@@ -37,10 +37,10 @@ export default function ReportView({ report }: ReportViewProps) {
     >
       {/* URL & timestamp */}
       <div className="mb-6">
-        <p className="text-[11px] text-vecton-dark/60 font-mono truncate">
+        <p className="text-xs text-vecton-dark/60 font-mono truncate">
           {report.url}
         </p>
-        <p className="text-[11px] text-vecton-dark/40 mt-1">
+        <p className="text-xs text-vecton-dark/50 mt-1">
           Analyzed {new Date(report.timestamp).toLocaleString()}
         </p>
       </div>
@@ -51,7 +51,7 @@ export default function ReportView({ report }: ReportViewProps) {
           {report.warnings.map((w, i) => (
             <div
               key={i}
-              className="text-[11px] text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-1.5 rounded"
+              className="text-xs text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-2 rounded"
             >
               {w}
             </div>
@@ -129,9 +129,7 @@ export default function ReportView({ report }: ReportViewProps) {
                 </span>
               )}
               {!available && (
-                <span className="text-[10px] text-vecton-dark/30">
-                  unavailable
-                </span>
+                <span className="text-xs text-vecton-dark/50">unavailable</span>
               )}
             </button>
           );
@@ -151,7 +149,7 @@ export default function ReportView({ report }: ReportViewProps) {
                 setActiveTab(tab);
               }}
             />
-            <div className="p-4 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px]">
+            <div className="p-5 sm:p-6 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px]">
               {activeTab === "inp" && (
                 <MetricTab
                   issues={device.inp_analysis.issues}

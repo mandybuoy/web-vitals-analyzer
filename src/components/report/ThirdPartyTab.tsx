@@ -75,7 +75,7 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
   const SortHeader = ({ label, field }: { label: string; field: SortKey }) => (
     <th
       onClick={() => toggleSort(field)}
-      className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3 cursor-pointer hover:text-vecton-dark/70 select-none"
+      className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3 cursor-pointer hover:text-vecton-dark/70 select-none"
     >
       {label}
       {sortKey === field && (
@@ -93,7 +93,7 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
             <tr className="border-b border-vecton-dark/10">
               <SortHeader label="Script" field="script_name" />
               <SortHeader label="Category" field="category" />
-              <th className="text-left text-[10px] text-vecton-dark/50 uppercase tracking-wider p-3">
+              <th className="text-left text-xs text-vecton-dark/50 uppercase tracking-wider p-3">
                 Loading
               </th>
               <SortHeader label="LCP" field="lcp_impact" />
@@ -112,14 +112,14 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
                   <p className="text-xs text-vecton-dark/70">
                     {entry.script_name}
                   </p>
-                  <p className="text-[10px] text-vecton-dark/40 font-mono">
+                  <p className="text-xs text-vecton-dark/50 font-mono">
                     {entry.domain}
                   </p>
                 </td>
                 <td className="p-3 text-xs text-vecton-dark/60">
                   {entry.category}
                 </td>
-                <td className="p-3 text-[10px] text-vecton-dark/50 font-mono">
+                <td className="p-3 text-xs text-vecton-dark/50 font-mono">
                   {entry.loading}
                 </td>
                 <td className="p-3">
@@ -133,7 +133,7 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
                 </td>
                 <td className="p-3">
                   <span
-                    className={`text-[10px] px-2 py-0.5 rounded ${ACTION_COLORS[entry.recommendation] ?? ""}`}
+                    className={`text-xs px-2.5 py-1 rounded ${ACTION_COLORS[entry.recommendation] ?? ""}`}
                   >
                     {entry.recommendation.replace("_", " ")}
                   </span>
@@ -156,30 +156,30 @@ export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {
                 {entry.script_name}
               </p>
               <span
-                className={`text-[10px] px-2 py-0.5 rounded ${ACTION_COLORS[entry.recommendation] ?? ""}`}
+                className={`text-xs px-2.5 py-1 rounded ${ACTION_COLORS[entry.recommendation] ?? ""}`}
               >
                 {entry.recommendation.replace("_", " ")}
               </span>
             </div>
-            <p className="text-[10px] text-vecton-dark/40 font-mono mb-2">
+            <p className="text-xs text-vecton-dark/50 font-mono mb-2">
               {entry.domain} &middot; {entry.category}
             </p>
             {entry.trade_off && (
-              <p className="text-[10px] text-amber-600/60 mb-2 italic">
+              <p className="text-xs text-amber-600/70 mb-2 italic">
                 {entry.trade_off}
               </p>
             )}
             <div className="flex gap-2">
               <div className="text-center">
-                <p className="text-[9px] text-vecton-dark/40 mb-0.5">LCP</p>
+                <p className="text-[11px] text-vecton-dark/50 mb-0.5">LCP</p>
                 <SeverityPill severity={entry.lcp_impact} />
               </div>
               <div className="text-center">
-                <p className="text-[9px] text-vecton-dark/40 mb-0.5">CLS</p>
+                <p className="text-[11px] text-vecton-dark/50 mb-0.5">CLS</p>
                 <SeverityPill severity={entry.cls_impact} />
               </div>
               <div className="text-center">
-                <p className="text-[9px] text-vecton-dark/40 mb-0.5">INP</p>
+                <p className="text-[11px] text-vecton-dark/50 mb-0.5">INP</p>
                 <SeverityPill severity={entry.inp_impact} />
               </div>
             </div>

@@ -129,7 +129,7 @@ export default function Home() {
         <div className="text-center mb-14">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-5 h-[1px] bg-vecton-orange/60" />
-            <span className="text-[11px] text-vecton-orange uppercase tracking-[0.2em]">
+            <span className="text-xs text-vecton-orange uppercase tracking-[0.2em]">
               Web Vitals Analysis
             </span>
             <div className="w-5 h-[1px] bg-vecton-orange/60" />
@@ -199,7 +199,7 @@ export default function Home() {
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Enter URL to analyze (e.g., example.com)"
-              className="flex-1 bg-transparent text-white placeholder-white/50 px-4 py-4 text-sm font-mono focus:outline-none"
+              className="flex-1 bg-transparent text-white placeholder-white/60 px-4 py-4 text-sm font-mono focus:outline-none"
               disabled={isRunning}
             />
             <button
@@ -212,7 +212,7 @@ export default function Home() {
                   : handleAnalyze
               }
               disabled={!url.trim() && !isDone}
-              className="mr-2 px-5 py-2.5 bg-vecton-orange hover:bg-vecton-orange/90 disabled:bg-vecton-beige/8 disabled:text-vecton-beige/20 text-vecton-light text-sm rounded-md transition-all flex items-center gap-2"
+              className="mr-2 px-5 py-2.5 bg-vecton-orange hover:bg-vecton-orange/90 disabled:bg-vecton-dark/8 disabled:text-vecton-dark/25 text-vecton-light text-sm rounded-md transition-all flex items-center gap-2"
             >
               {isRunning ? (
                 <>
@@ -295,9 +295,7 @@ export default function Home() {
               </svg>
               <div className="text-left">
                 <p className="text-sm text-white">Starting analysis...</p>
-                <p className="text-[11px] text-white/50">
-                  Initializing pipeline
-                </p>
+                <p className="text-xs text-white/60">Initializing pipeline</p>
               </div>
             </div>
           </div>
@@ -319,9 +317,7 @@ export default function Home() {
             </svg>
             <div>
               <p className="text-sm text-[#ff4e42]">Analysis Failed</p>
-              <p className="text-[11px] text-[#ff4e42]/60 mt-1">
-                {analysis.error}
-              </p>
+              <p className="text-xs text-[#ff4e42]/60 mt-1">{analysis.error}</p>
               <button
                 onClick={() => {
                   track("error_retry_clicked", {
@@ -330,7 +326,7 @@ export default function Home() {
                   });
                   handleAnalyze();
                 }}
-                className="text-[11px] text-vecton-orange underline mt-2"
+                className="text-xs text-vecton-orange underline mt-2"
               >
                 Try again
               </button>
@@ -361,7 +357,7 @@ export default function Home() {
         <footer className="text-center mt-16 pb-8">
           <div className="flex items-center justify-center gap-3">
             <div className="w-8 h-[1px] bg-vecton-dark/20" />
-            <p className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
+            <p className="text-xs text-vecton-dark/50 uppercase tracking-widest">
               Powered by Google PSI &amp; AI Analysis
             </p>
             <div className="w-8 h-[1px] bg-vecton-dark/20" />
