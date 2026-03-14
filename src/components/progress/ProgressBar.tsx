@@ -10,7 +10,6 @@ import { useElapsedTime } from "@/hooks/useElapsedTime";
 interface ProgressBarProps {
   status: PipelineStatus;
   onCancel: () => void;
-  psiOnly?: boolean;
 }
 
 const STAGES = [
@@ -18,11 +17,6 @@ const STAGES = [
   { num: 2, name: "Extracting", desc: "HTML signals" },
   { num: 3, name: "Analyzing", desc: "Deep analysis" },
   { num: 4, name: "Generating", desc: "Report" },
-] as const;
-
-const PSI_STAGES = [
-  { num: 1, name: "Collecting", desc: "PSI + HTML" },
-  { num: 2, name: "Processing", desc: "Extracting signals" },
 ] as const;
 
 function StageStep({
@@ -220,13 +214,17 @@ function CollectionSplitView({ status }: { status: PipelineStatus }) {
   );
 }
 
-export default function ProgressBar({
-  status,
-  onCancel,
-  psiOnly,
-}: ProgressBarProps) {
+export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
   const currentStage = status.stage;
-  const stages = psiOnly ? PSI_STAGES : STAGES;
+  const stages = STAGES;
+  const totalStages = stages.length;
+
+  // Global progress: completed stages + fraction of current stage
+  const globalProgress = Math.min(
+    100,
+    ((currentStage - 1) / totalStages) * 100 +
+      status.progress_pct / totalStages,
+  );
 
   return (
     <div className="animate-fade-up">
@@ -286,11 +284,11 @@ export default function ProgressBar({
           <CollectionSplitView status={status} />
         )}
 
-        {/* Progress bar */}
+        {/* Global progress bar */}
         <div className="w-full bg-vecton-dark/10 rounded-full h-1.5 mb-3">
           <div
             className="bg-vecton-orange h-1.5 rounded-full transition-all duration-500"
-            style={{ width: `${status.progress_pct}%` }}
+            style={{ width: `${globalProgress}%` }}
           />
         </div>
 
