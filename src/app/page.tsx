@@ -10,24 +10,23 @@ import ProgressBar from "@/components/progress/ProgressBar";
 import HistoryList from "@/components/history/HistoryList";
 import SettingsPanel from "@/components/settings/SettingsPanel";
 
-function usePsiOnlyMode() {
-  const [psiOnly, setPsiOnly] = useState(true);
+function useSettingsGear() {
+  const [visible, setVisible] = useState(false);
 
-  // Load from localStorage on mount (default: true)
   useEffect(() => {
-    const stored = localStorage.getItem("vitalscan_psi_only");
-    setPsiOnly(stored === null ? true : stored === "true");
+    const stored = localStorage.getItem("vitalscan_settings_gear");
+    setVisible(stored === "true");
   }, []);
 
   const toggle = useCallback(() => {
-    setPsiOnly((prev) => {
+    setVisible((prev) => {
       const next = !prev;
-      localStorage.setItem("vitalscan_psi_only", String(next));
+      localStorage.setItem("vitalscan_settings_gear", String(next));
       return next;
     });
   }, []);
 
-  return { psiOnly, toggle };
+  return { visible, toggle };
 }
 
 export default function Home() {
@@ -35,22 +34,23 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const analysis = useAnalysis();
   const history = useHistory();
-  const { psiOnly, toggle: togglePsiOnly } = usePsiOnlyMode();
+  const { visible: settingsGearVisible, toggle: toggleSettingsGear } =
+    useSettingsGear();
 
   const analysisStartTime = useRef<number>(0);
 
-  // Hidden keyboard shortcut: Ctrl+Shift+P (Cmd+Shift+P on Mac)
+  // Hidden keyboard shortcut: Ctrl+Shift+P (Cmd+Shift+P on Mac) — toggles settings gear
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "P") {
         e.preventDefault();
-        togglePsiOnly();
-        track("psi_mode_toggled", { enabled: !psiOnly });
+        toggleSettingsGear();
+        track("settings_gear_toggled", { visible: !settingsGearVisible });
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [togglePsiOnly, psiOnly]);
+  }, [toggleSettingsGear, settingsGearVisible]);
 
   const handleAnalyze = async () => {
     if (!url.trim()) return;
@@ -60,14 +60,12 @@ export default function Home() {
       targetUrl = "https://" + targetUrl;
     }
 
-    track("analysis_started", { url: targetUrl, psi_only: psiOnly });
+    track("analysis_started", { url: targetUrl });
     analysisStartTime.current = Date.now();
 
-    await analysis.start(targetUrl, psiOnly);
+    await analysis.start(targetUrl);
     // Refresh history after starting (it will show when done)
-    if (!psiOnly) {
-      setTimeout(() => history.refresh(), 2000);
-    }
+    setTimeout(() => history.refresh(), 2000);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -145,8 +143,8 @@ export default function Home() {
             root-cause analysis and prioritized fixes.
           </p>
 
-          {/* Settings gear (hidden in PSI-only mode) */}
-          {!psiOnly && (
+          {/* Settings gear (hidden until Ctrl+Shift+P) */}
+          {settingsGearVisible && (
             <button
               onClick={() => {
                 track("settings_opened");
@@ -167,16 +165,6 @@ export default function Home() {
                 <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" />
               </svg>
             </button>
-          )}
-
-          {/* PSI-only mode indicator */}
-          {psiOnly && (
-            <div className="absolute top-6 right-6">
-              <div
-                className="w-2 h-2 rounded-full bg-vecton-orange/40"
-                title="PSI-only mode"
-              />
-            </div>
           )}
         </div>
 
@@ -269,7 +257,6 @@ export default function Home() {
                 });
                 analysis.cancel();
               }}
-              psiOnly={psiOnly}
             />
           </div>
         )}
@@ -343,15 +330,13 @@ export default function Home() {
             <ReportView report={analysis.report} />
           ))}
 
-        {/* History (idle only, hidden in PSI-only mode) */}
-        {!psiOnly &&
-          analysis.state === "idle" &&
-          history.history.length > 0 && (
-            <HistoryList
-              entries={history.history}
-              onSelect={handleHistorySelect}
-            />
-          )}
+        {/* History (idle only) */}
+        {analysis.state === "idle" && history.history.length > 0 && (
+          <HistoryList
+            entries={history.history}
+            onSelect={handleHistorySelect}
+          />
+        )}
 
         {/* Footer */}
         <footer className="text-center mt-16 pb-8">
