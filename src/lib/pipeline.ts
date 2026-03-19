@@ -604,7 +604,9 @@ export async function runPipeline(
       primaryPsi?.networkRequests,
     );
     const userStack = options?.techStack ? [options.techStack] : [];
-    const finalTechStack = [...new Set([...userStack, ...autoDetectedStack])];
+    const finalTechStack = Array.from(
+      new Set([...userStack, ...autoDetectedStack]),
+    );
     const duplicateResources = findDuplicateResources(
       primaryPsi?.networkRequests,
     );
@@ -646,7 +648,7 @@ export async function runPipeline(
         signal: getAbortSignal(analysisId),
       });
 
-      const data = result.data;
+      const data: DeviceReport = result.data as DeviceReport;
 
       // Safety net: patch performance_score if LLM returned 0 but PSI has a real score
       if (
