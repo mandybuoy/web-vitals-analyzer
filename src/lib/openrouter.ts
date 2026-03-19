@@ -97,6 +97,15 @@ export async function callOpenRouter<T>(options: {
   // Per-tier request timeout: 2 min for extraction, 5 min for intelligence
   const timeoutMs = tier === "extraction" ? 120_000 : 300_000;
 
+  // Token budget guard: warn if estimated input tokens are very high
+  const estimatedInputChars = systemPrompt.length + userPrompt.length;
+  const estimatedInputTokens = Math.ceil(estimatedInputChars / 4);
+  if (estimatedInputTokens > 80_000) {
+    console.warn(
+      `[openrouter] High input token estimate for ${tier}: ~${estimatedInputTokens} tokens (${estimatedInputChars} chars). Analysis ID: ${analysisId}`,
+    );
+  }
+
   const client = new Anthropic({ apiKey });
 
   let lastError: Error | null = null;

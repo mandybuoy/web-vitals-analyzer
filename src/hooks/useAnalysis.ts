@@ -13,7 +13,7 @@ export interface UseAnalysisReturn {
   status: PipelineStatus | null;
   report: AnalysisReport | null;
   error: string | null;
-  start: (url: string, psiOnly?: boolean) => Promise<void>;
+  start: (url: string, psiOnly?: boolean, techStack?: string) => Promise<void>;
   cancel: () => Promise<void>;
   loadReport: (id: string) => Promise<void>;
   reset: () => void;
@@ -101,23 +101,32 @@ export function useAnalysis(): UseAnalysisReturn {
     enabled: polling && !!analysisId,
   });
 
-  const start = useCallback(async (url: string, psiOnly?: boolean) => {
-    // Reset state
-    setError(null);
-    setReport(null);
-    setStatus(null);
-    setState("running");
+  const start = useCallback(
+    async (url: string, psiOnly?: boolean, techStack?: string) => {
+      // Reset state
+      setError(null);
+      setReport(null);
+      setStatus(null);
+      setState("running");
 
-    try {
-      const { analysis_id } = await api.startAnalysis(url, psiOnly);
-      setAnalysisId(analysis_id);
-      lastProgressRef.current = { pct: 0, time: Date.now() };
-      setPolling(true);
-    } catch (err) {
-      setState("error");
-      setError(err instanceof Error ? err.message : "Failed to start analysis");
-    }
-  }, []);
+      try {
+        const { analysis_id } = await api.startAnalysis(
+          url,
+          psiOnly,
+          techStack,
+        );
+        setAnalysisId(analysis_id);
+        lastProgressRef.current = { pct: 0, time: Date.now() };
+        setPolling(true);
+      } catch (err) {
+        setState("error");
+        setError(
+          err instanceof Error ? err.message : "Failed to start analysis",
+        );
+      }
+    },
+    [],
+  );
 
   const cancel = useCallback(async () => {
     setPolling(false);

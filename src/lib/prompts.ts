@@ -1,6 +1,11 @@
 // Prompt templates for LLM calls
 
-import type { PSIResult, ExtractedSignals } from "./types";
+import type {
+  PSIResult,
+  ExtractedSignals,
+  NetworkRequestItem,
+  DuplicateResource,
+} from "./types";
 
 const HTML_HEAD_LIMIT = 15_000; // chars of <head> sent to Opus
 const HTML_BODY_LIMIT = 50_000; // chars of body sent to Sonnet
@@ -90,7 +95,8 @@ Return a JSON object matching this exact schema:
   "field_metrics": {
     "lcp": { "p75": number, "rating": "good" | "needs_improvement" | "poor" } | null,
     "inp": { "p75": number, "rating": "good" | "needs_improvement" | "poor" } | null,
-    "cls": { "p75": number, "rating": "good" | "needs_improvement" | "poor" } | null
+    "cls": { "p75": number, "rating": "good" | "needs_improvement" | "poor" } | null,
+    "fcp": { "p75": number, "rating": "good" | "needs_improvement" | "poor" } | null
   },
   "lab_metrics": {
     "performance_score": number,
@@ -100,7 +106,7 @@ Return a JSON object matching this exact schema:
     "fcp": number,
     "si": number
   },
-  "inp_analysis": {
+  "fcp_analysis": {
     "issues": [
       {
         "name": string,
@@ -117,6 +123,9 @@ Return a JSON object matching this exact schema:
         "evidence_basis": "measured" | "inferred" | "best_practice"
       }
     ]
+  },
+  "inp_analysis": {
+    "issues": [...]
   },
   "lcp_analysis": {
     "issues": [...]
@@ -180,6 +189,7 @@ ESTIMATED IMPROVEMENT RULES:
 11. When estimating improvements, show arithmetic: current_value - estimated_savings = estimated_result. Be consistent — do not cite different base values for the same metric across issues. Do not claim total savings that exceed the current measured value.
 
 Analysis guidelines:
+- FCP analysis: consider render-blocking resources (CSS and JS), server response time (TTFB), CSS complexity, font loading strategy (@font-face with font-display), critical rendering path length, and inline critical CSS. FCP is the first visual feedback — fixes here directly improve perceived speed.
 - INP gets the deepest analysis. Consider: long tasks, event handlers, layout thrashing, third-party script blocking, main thread contention
 - LCP analysis: consider server response time, render-blocking resources, image optimization, preloading, critical rendering path
 - CLS analysis: consider unsized images, dynamic content injection, font loading (FOIT/FOUT), ads, embeds
@@ -187,6 +197,27 @@ Analysis guidelines:
 - Priority table: rank ALL fixes by impact, starting with the highest-impact easiest fixes. Exclude observations.
 - Use field metrics (CrUX p75) when available; fall back to lab metrics when field data is absent
 - Ratings use underscores: "needs_improvement" (not hyphens)
+
+TECHNICAL ACCURACY GUARDRAILS:
+12. CSS CANNOT use the "defer" attribute. That is a script-only attribute. Valid techniques to defer non-critical CSS: (a) <link rel="preload" href="style.css" as="style" onload="this.rel='stylesheet'">, (b) <link rel="stylesheet" href="style.css" media="print" onload="this.media='all'">, (c) dynamically inject <link> via JavaScript after load. NEVER suggest "defer CSS" or "add defer to stylesheets" — these are technically invalid.
+13. TTFB fixes MUST be specific to the detected tech stack. Name the CDN, caching strategy, SSR optimization, or server-side change. Examples: "Enable stale-while-revalidate on Cloudflare edge cache", "Add Redis caching for database queries in the WordPress backend", "Enable ISR (Incremental Static Regeneration) in Next.js for this route". "Reduce TTFB" or "Reduce server response time" alone is NOT acceptable as a recommendation.
+14. Font reduction recommendations must distinguish functional fonts (body text, headings, UI elements) from decorative fonts before suggesting removal. Do NOT recommend reducing font count without identifying which specific fonts can be dropped and confirming they are not required by the site's design system.
+
+CODE-LEVEL SPECIFICITY:
+15. When PSI diagnostics/opportunities include items[] arrays with specific resource URLs and byte sizes, you MUST reference those specific resources in your analysis. Do NOT summarize them generically.
+  - BAD: "Reduce unused JavaScript (500KB)"
+  - GOOD: "Remove jquery-ui.min.js (180KB unused), owl.carousel.min.js (95KB unused), and daterangepicker.js (65KB unused) — loaded but not called on this page"
+  - BAD: "Avoid enormous network payloads"
+  - GOOD: "Google Maps API loaded 8 times via duplicate BranchLocator components at maps.googleapis.com — load once and share the instance"
+16. Every entry in priority_table MUST reference specific URLs, file names, or library names from the provided PSI items[] data. Generic recommendations without specific resource references are NOT acceptable.
+17. When items[] data is provided for an audit, base your analysis on the specific resources listed, not on the audit summary text alone.
+
+TECH-STACK AWARENESS:
+18. If a "## Detected Technology Stack" section is provided in the input, tailor all recommendations to that stack. Never suggest removing a resource that is a core dependency of the detected framework (e.g., do not suggest removing react-dom on a React site, or zone.js on an Angular site).
+19. When the detected stack has specific optimization patterns (e.g., Next.js Image component and next/dynamic, Angular lazy-loaded modules, WordPress object caching), reference those in your fix recommendations instead of generic advice.
+
+DUPLICATE RESOURCE DETECTION:
+20. If a "## Duplicate Resources Detected" section is provided, analyze each duplicate. Identify the likely cause (duplicate component mount, tag manager re-injection, missing singleton pattern, multiple entry points) and provide the specific fix. Include the URL and load count in your issue description.
 
 Code-level fix requirements:
 - The "fix" field should explain WHAT to do and WHY in plain English.
@@ -203,12 +234,120 @@ Code-level fix requirements:
 
 Respond with ONLY the JSON object, no explanations.`;
 
+// ----- Pre-processing helpers (deterministic, run before LLM) -----
+
+// DuplicateResource interface is in types.ts
+export type { DuplicateResource } from "./types";
+
+/** Identify URLs loaded 2+ times from network requests */
+export function findDuplicateResources(
+  networkRequests?: NetworkRequestItem[],
+): DuplicateResource[] {
+  if (!networkRequests || networkRequests.length === 0) return [];
+
+  const groups = new Map<
+    string,
+    { count: number; totalTransferSize: number; resourceType: string }
+  >();
+
+  networkRequests.forEach((req) => {
+    const existing = groups.get(req.url);
+    if (existing) {
+      existing.count++;
+      existing.totalTransferSize += req.transferSize;
+    } else {
+      groups.set(req.url, {
+        count: 1,
+        totalTransferSize: req.transferSize,
+        resourceType: req.resourceType,
+      });
+    }
+  });
+
+  const duplicates: DuplicateResource[] = [];
+  groups.forEach((val, url) => {
+    if (val.count >= 2) {
+      duplicates.push({ url, ...val });
+    }
+  });
+
+  return duplicates.sort((a, b) => b.totalTransferSize - a.totalTransferSize);
+}
+
+/** Pattern-match script URLs and HTML signals to detect tech stack */
+export function detectTechStack(
+  extractedSignals: ExtractedSignals | null,
+  networkRequests?: NetworkRequestItem[],
+): string[] {
+  const stack: Set<string> = new Set();
+  const allUrls: string[] = [];
+
+  // Gather URLs from network requests
+  if (networkRequests) {
+    networkRequests.forEach((req) => allUrls.push(req.url));
+  }
+
+  // Gather URLs from extracted signals
+  if (extractedSignals) {
+    extractedSignals.scripts.render_blocking.forEach((s) =>
+      allUrls.push(s.src),
+    );
+    extractedSignals.scripts.async_scripts.forEach((s) => allUrls.push(s.src));
+    extractedSignals.scripts.defer_scripts.forEach((s) => allUrls.push(s.src));
+    extractedSignals.third_party.scripts.forEach((s) => allUrls.push(s.src));
+  }
+
+  const urlStr = allUrls.join(" ").toLowerCase();
+
+  // Framework detection patterns
+  const patterns: [RegExp, string][] = [
+    [/\/_next\//, "Next.js"],
+    [/react-dom|react\.production/, "React"],
+    [/angular(\.min)?\.js|zone\.js/, "Angular"],
+    [/vue(\.runtime)?(\.min)?\.js|\/nuxt\/|_nuxt/, "Vue.js/Nuxt"],
+    [/jquery(\.min)?\.js|jquery-\d/, "jQuery"],
+    [/wp-content|wp-includes/, "WordPress"],
+    [/cdn\.shopify\.com/, "Shopify"],
+    [/tailwindcss|tailwind/, "Tailwind CSS"],
+    [/bootstrap(\.min)?\.js|bootstrap(\.min)?\.css/, "Bootstrap"],
+    [/gatsby/, "Gatsby"],
+    [/svelte/, "Svelte"],
+    [/ember/, "Ember.js"],
+  ];
+
+  patterns.forEach(([pattern, name]) => {
+    if (pattern.test(urlStr)) stack.add(name);
+  });
+
+  // Third-party tool detection
+  const thirdPartyPatterns: [RegExp, string][] = [
+    [/googletagmanager\.com|gtm\.js/, "Google Tag Manager"],
+    [/google-analytics\.com|gtag/, "Google Analytics"],
+    [/connect\.facebook|fbevents/, "Facebook Pixel"],
+    [/hotjar\.com/, "Hotjar"],
+    [/visual-website-optimizer|vwo/, "VWO (A/B Testing)"],
+    [/notifyvisitors/, "NotifyVisitors"],
+    [/maps\.googleapis\.com|maps\.google/, "Google Maps"],
+    [/cloudflare/, "Cloudflare"],
+  ];
+
+  thirdPartyPatterns.forEach(([pattern, name]) => {
+    if (pattern.test(urlStr)) stack.add(name);
+  });
+
+  return Array.from(stack);
+}
+
 export function buildTier2Prompt(
   psiResult: PSIResult,
   extractedSignals: ExtractedSignals | null,
   head: string,
   device: "mobile" | "desktop",
   systemPrompt?: string,
+  preComputed?: {
+    techStack?: string[];
+    duplicates?: DuplicateResource[];
+  },
 ): { system: string; user: string } {
   const truncatedHead = head.slice(0, HTML_HEAD_LIMIT);
 
@@ -221,6 +360,27 @@ export function buildTier2Prompt(
 
   if (extractedSignals) {
     parts.push("", "## HTML Source Signals", JSON.stringify(extractedSignals));
+  }
+
+  // Tech stack (pre-computed or auto-detected)
+  const techStack =
+    preComputed?.techStack ??
+    detectTechStack(extractedSignals, psiResult.networkRequests);
+  if (techStack.length > 0) {
+    parts.push("", "## Detected Technology Stack", JSON.stringify(techStack));
+  }
+
+  // Duplicates (pre-computed or auto-detected)
+  const duplicates =
+    preComputed?.duplicates ??
+    findDuplicateResources(psiResult.networkRequests);
+  if (duplicates.length > 0) {
+    parts.push(
+      "",
+      "## Duplicate Resources Detected",
+      "The following URLs were loaded multiple times on this page:",
+      JSON.stringify(duplicates),
+    );
   }
 
   if (truncatedHead) {

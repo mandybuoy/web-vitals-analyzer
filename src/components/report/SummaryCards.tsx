@@ -7,6 +7,7 @@ import RatingPill from "./RatingPill";
 interface SummaryCardsProps {
   device: DeviceReport;
   sourceStats: SourceStats;
+  techStack?: string[];
 }
 
 function formatMetricValue(metric: string, value: number): string {
@@ -18,10 +19,17 @@ function formatMetricValue(metric: string, value: number): string {
 export default function SummaryCards({
   device,
   sourceStats,
+  techStack,
 }: SummaryCardsProps) {
   const { field_metrics, lab_metrics } = device;
 
   const primaryMetrics = [
+    {
+      label: "FCP",
+      field: field_metrics.fcp,
+      labValue: lab_metrics.fcp,
+      metric: "fcp",
+    },
     {
       label: "LCP",
       field: field_metrics.lcp,
@@ -55,7 +63,7 @@ export default function SummaryCards({
   return (
     <div className="space-y-4">
       {/* Primary metrics + score gauge */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         {/* Score gauge */}
         <div className="p-6 rounded-lg bg-vecton-dark border border-vecton-beige/6 focus-arrow flex items-center justify-center">
           <ScoreGauge
@@ -116,6 +124,23 @@ export default function SummaryCards({
               </p>
               <p className="text-sm text-vecton-dark/70 font-mono">{s.value}</p>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Tech stack pills */}
+      {techStack && techStack.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+            Stack
+          </span>
+          {techStack.map((t) => (
+            <span
+              key={t}
+              className="text-xs px-2 py-0.5 rounded-full bg-vecton-orange/10 text-vecton-orange/80 border border-vecton-orange/15"
+            >
+              {t}
+            </span>
           ))}
         </div>
       )}

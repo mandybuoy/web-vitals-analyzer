@@ -26,6 +26,8 @@ import { callOpenRouter } from "./openrouter";
 import {
   buildExtractionPrompt,
   buildTier2Prompt,
+  detectTechStack,
+  findDuplicateResources,
   DEFAULT_EXTRACTION_SYSTEM_PROMPT,
   DEFAULT_TIER2_SYSTEM_PROMPT,
 } from "./prompts";
@@ -122,6 +124,7 @@ const deviceReportSchema = z.object({
     lcp: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
     inp: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
     cls: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
+    fcp: z.object({ p75: z.number(), rating: ratingEnum }).nullable(),
   }),
   lab_metrics: z.object({
     performance_score: z.number(),
@@ -131,6 +134,7 @@ const deviceReportSchema = z.object({
     fcp: z.number(),
     si: z.number(),
   }),
+  fcp_analysis: z.object({ issues: z.array(issueSchema) }),
   inp_analysis: z.object({ issues: z.array(issueSchema) }),
   lcp_analysis: z.object({ issues: z.array(issueSchema) }),
   cls_analysis: z.object({ issues: z.array(issueSchema) }),
@@ -243,6 +247,7 @@ function extractFallbackSourceStats(psi: PSIResult): SourceStats {
 
 export interface PipelineOptions {
   psiOnly?: boolean;
+  techStack?: string;
 }
 
 export async function runPipeline(
@@ -375,7 +380,17 @@ export async function runPipeline(
       updateCollectionProgress(analysisId, {
         psi_desktop: "running",
         psi_desktop_start: new Date().toISOString(),
+        psi_detail: "Waiting for Google PSI response...",
       });
+
+      // Heartbeat: update psi_detail every 10s so users know it's alive
+      const heartbeatStart = Date.now();
+      const heartbeat = setInterval(() => {
+        const elapsed = Math.round((Date.now() - heartbeatStart) / 1000);
+        updateCollectionProgress(analysisId, {
+          psi_detail: `Google is analyzing the page... ${elapsed}s (large sites can take up to 3 min)`,
+        });
+      }, 10_000);
 
       const delayedMobile = new Promise<PSIResult>((resolve, reject) => {
         setTimeout(() => {
@@ -427,6 +442,7 @@ export async function runPipeline(
         delayedMobile,
       ]);
 
+      clearInterval(heartbeat);
       updateCollectionProgress(analysisId, { psi_detail: undefined });
 
       desktopPsi =
@@ -524,6 +540,7 @@ export async function runPipeline(
       warnings.push("HTML fetch/extraction failed — using PSI data only");
 
     updateStage(analysisId, 2, "Extracting", 25);
+    setDetail(analysisId, "Processing HTML signals and PSI data...");
 
     // ===== STAGE 2: Signal Processing (results already available from Stage 1) =====
     checkAbort(analysisId);
@@ -567,6 +584,10 @@ export async function runPipeline(
     }
 
     updateStage(analysisId, 3, "Analyzing", 40);
+    setDetail(
+      analysisId,
+      "Running deep AI analysis (this may take 1-2 min)...",
+    );
 
     // ===== STAGE 3: Deep Analysis (Opus, parallel mobile + desktop) =====
     checkAbort(analysisId);
@@ -575,6 +596,34 @@ export async function runPipeline(
       getSetting("intelligence_model") ?? DEFAULT_INTELLIGENCE_MODEL;
     const customTier2Prompt = getSetting("tier2_system_prompt") ?? undefined;
     const headHtml = fetchedHtml?.head ?? "";
+
+    // Pre-compute tech stack and duplicates (shared across devices and report)
+    const primaryPsi = mobilePsi ?? desktopPsi;
+    const autoDetectedStack = detectTechStack(
+      extractedSignals,
+      primaryPsi?.networkRequests,
+    );
+    const userStack = options?.techStack ? [options.techStack] : [];
+    const finalTechStack = Array.from(
+      new Set([...userStack, ...autoDetectedStack]),
+    );
+    const duplicateResources = findDuplicateResources(
+      primaryPsi?.networkRequests,
+    );
+
+    // Extract INP script summary from bootup-time diagnostic
+    const extractScriptSummary = (psiResult: PSIResult) => {
+      const bootupItems =
+        psiResult.diagnostics.find((d) => d.id === "bootup-time")?.items ?? [];
+      return bootupItems
+        .filter((item) => item.url)
+        .slice(0, 10)
+        .map((item) => ({
+          url: item.url!,
+          totalBytes: item.totalBytes ?? 0,
+          mainThreadTime: item.wastedMs,
+        }));
+    };
 
     const analyzeDevice = async (
       psiResult: PSIResult,
@@ -586,6 +635,7 @@ export async function runPipeline(
         headHtml,
         device,
         customTier2Prompt,
+        { techStack: finalTechStack, duplicates: duplicateResources },
       );
 
       const result = await callOpenRouter({
@@ -598,7 +648,7 @@ export async function runPipeline(
         signal: getAbortSignal(analysisId),
       });
 
-      const data = result.data;
+      const data: DeviceReport = result.data as DeviceReport;
 
       // Safety net: patch performance_score if LLM returned 0 but PSI has a real score
       if (
@@ -606,6 +656,12 @@ export async function runPipeline(
         psiResult.overallScore > 0
       ) {
         data.lab_metrics.performance_score = Math.round(psiResult.overallScore);
+      }
+
+      // Attach INP script summary from PSI bootup-time data
+      const scriptSummary = extractScriptSummary(psiResult);
+      if (scriptSummary.length > 0) {
+        data.inp_script_summary = scriptSummary;
       }
 
       return data;
@@ -640,6 +696,7 @@ export async function runPipeline(
     const [mobileReport, desktopReport] = await Promise.all(analysisPromises);
 
     updateStage(analysisId, 4, "Generating", 85);
+    setDetail(analysisId, "Building report...");
 
     // ===== STAGE 4: Report Assembly =====
     checkAbort(analysisId);
@@ -652,6 +709,9 @@ export async function runPipeline(
       mobile: mobileReport,
       desktop: desktopReport,
       warnings,
+      tech_stack: finalTechStack.length > 0 ? finalTechStack : undefined,
+      duplicate_resources:
+        duplicateResources.length > 0 ? duplicateResources : undefined,
       source_stats_source: sourceStatsSource,
     };
 

@@ -22,11 +22,16 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 export async function startAnalysis(
   url: string,
   psiOnly?: boolean,
+  techStack?: string,
 ): Promise<{ analysis_id: string }> {
   const response = await fetch("/api/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, ...(psiOnly && { psi_only: true }) }),
+    body: JSON.stringify({
+      url,
+      ...(psiOnly && { psi_only: true }),
+      ...(techStack && { tech_stack: techStack }),
+    }),
   });
 
   if (response.status === 429) {
