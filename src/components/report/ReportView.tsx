@@ -8,6 +8,7 @@ import ReportTabBar, { type ReportTab } from "./ReportTabBar";
 import MetricTab from "./MetricTab";
 import ThirdPartyTab from "./ThirdPartyTab";
 import PriorityTab from "./PriorityTab";
+import DuplicatesTab from "./DuplicatesTab";
 
 interface ReportViewProps {
   report: AnalysisReport;
@@ -139,7 +140,11 @@ export default function ReportView({ report }: ReportViewProps) {
       {/* Report content */}
       {device ? (
         <>
-          <SummaryCards device={device} sourceStats={report.source_stats} />
+          <SummaryCards
+            device={device}
+            sourceStats={report.source_stats}
+            techStack={report.tech_stack}
+          />
 
           <div className="mt-8">
             <ReportTabBar
@@ -154,6 +159,13 @@ export default function ReportView({ report }: ReportViewProps) {
                 <MetricTab
                   issues={device.inp_analysis.issues}
                   metricLabel="INP"
+                  scriptSummary={device.inp_script_summary}
+                />
+              )}
+              {activeTab === "fcp" && (
+                <MetricTab
+                  issues={device.fcp_analysis.issues}
+                  metricLabel="FCP"
                 />
               )}
               {activeTab === "lcp" && (
@@ -167,6 +179,9 @@ export default function ReportView({ report }: ReportViewProps) {
                   issues={device.cls_analysis.issues}
                   metricLabel="CLS"
                 />
+              )}
+              {activeTab === "duplicates" && (
+                <DuplicatesTab duplicates={report.duplicate_resources ?? []} />
               )}
               {activeTab === "third-party" && (
                 <ThirdPartyTab entries={device.third_party_matrix} />

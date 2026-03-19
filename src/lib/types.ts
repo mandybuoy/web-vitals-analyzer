@@ -19,6 +19,7 @@ export interface PSIResult {
   fieldData?: FieldData;
   diagnostics: DiagnosticItem[];
   opportunities: OpportunityItem[];
+  networkRequests?: NetworkRequestItem[];
   screenshots?: string[];
 }
 
@@ -51,12 +52,43 @@ export interface MetricData {
   description: string;
 }
 
+export interface ResourceItem {
+  url?: string;
+  totalBytes?: number;
+  transferSize?: number;
+  wastedBytes?: number;
+  wastedMs?: number;
+  label?: string;
+}
+
+export interface NetworkRequestItem {
+  url: string;
+  resourceType: string;
+  transferSize: number;
+  startTime: number;
+  endTime: number;
+}
+
+export interface DuplicateResource {
+  url: string;
+  count: number;
+  totalTransferSize: number;
+  resourceType: string;
+}
+
+export interface ScriptImpactItem {
+  url: string;
+  totalBytes: number;
+  mainThreadTime?: number;
+}
+
 export interface DiagnosticItem {
   id: string;
   title: string;
   description: string;
   score: number | null;
   displayValue?: string;
+  items?: ResourceItem[];
 }
 
 export interface OpportunityItem {
@@ -66,6 +98,7 @@ export interface OpportunityItem {
   score: number | null;
   savings?: string;
   displayValue?: string;
+  items?: ResourceItem[];
 }
 
 // ----- Vital Ratings -----
@@ -237,6 +270,7 @@ export interface DeviceReport {
     lcp: { p75: number; rating: VitalRating } | null;
     inp: { p75: number; rating: VitalRating } | null;
     cls: { p75: number; rating: VitalRating } | null;
+    fcp: { p75: number; rating: VitalRating } | null;
   };
   lab_metrics: {
     performance_score: number;
@@ -246,11 +280,13 @@ export interface DeviceReport {
     fcp: number;
     si: number;
   };
+  fcp_analysis: { issues: Issue[] };
   inp_analysis: { issues: Issue[] };
   lcp_analysis: { issues: Issue[] };
   cls_analysis: { issues: Issue[] };
   third_party_matrix: ThirdPartyEntry[];
   priority_table: PriorityFix[];
+  inp_script_summary?: ScriptImpactItem[];
 }
 
 // ----- Top-Level Analysis Report -----
@@ -263,6 +299,8 @@ export interface AnalysisReport {
   mobile: DeviceReport | null;
   desktop: DeviceReport | null;
   warnings: string[];
+  tech_stack?: string[];
+  duplicate_resources?: DuplicateResource[];
   // PSI-only mode fields (stages 1-2 only, no LLM analysis)
   psi_only?: boolean;
   mobile_psi?: PSIResult;

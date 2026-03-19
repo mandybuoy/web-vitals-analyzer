@@ -8,6 +8,8 @@ export type {
   MetricData,
   DiagnosticItem,
   OpportunityItem,
+  ResourceItem,
+  NetworkRequestItem,
 } from "./types";
 
 import type {
@@ -17,6 +19,8 @@ import type {
   FieldData,
   DiagnosticItem,
   OpportunityItem,
+  ResourceItem,
+  NetworkRequestItem,
 } from "./types";
 
 // Thresholds for Core Web Vitals
@@ -86,6 +90,102 @@ const RETRYABLE_PATTERNS = [
 const PSI_MAX_RETRIES = 2;
 const PSI_BASE_BACKOFF_MS = 3_000;
 const PSI_TIMEOUT_MS = 180_000; // 3 minutes — heavy sites need time
+
+// ----- Items[] extraction helpers -----
+
+const MAX_ITEMS_PER_AUDIT = 15;
+const MAX_ITEMS_CHARS = 2_000;
+const MAX_NETWORK_REQUESTS = 30;
+
+/** Strip query params and fragments from URLs to save tokens */
+function stripUrlParams(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
+/** Sort key varies by audit type */
+const SORT_KEY_BY_AUDIT: Record<string, keyof ResourceItem> = {
+  "bootup-time": "totalBytes",
+  "mainthread-work-breakdown": "totalBytes",
+  "third-party-summary": "totalBytes",
+  "long-tasks": "wastedMs",
+};
+
+/**
+ * Extract and truncate items[] from a PSI audit.
+ * Keeps the highest-impact items, strips URL query params, and enforces a character budget.
+ */
+function truncateItems(
+  audit: any,
+  maxItems = MAX_ITEMS_PER_AUDIT,
+): ResourceItem[] | undefined {
+  const rawItems = audit?.details?.items;
+  if (!Array.isArray(rawItems) || rawItems.length === 0) return undefined;
+
+  const sortKey = SORT_KEY_BY_AUDIT[audit.id] ?? "wastedBytes";
+
+  const mapped: ResourceItem[] = rawItems
+    .map((item: any) => {
+      const ri: ResourceItem = {};
+      if (item.url) ri.url = stripUrlParams(item.url);
+      if (item.totalBytes != null) ri.totalBytes = Math.round(item.totalBytes);
+      if (item.transferSize != null)
+        ri.transferSize = Math.round(item.transferSize);
+      if (item.wastedBytes != null)
+        ri.wastedBytes = Math.round(item.wastedBytes);
+      if (item.wastedMs != null) ri.wastedMs = Math.round(item.wastedMs);
+      if (item.label) ri.label = item.label;
+      // Also capture groupLabel (used by mainthread-work-breakdown)
+      if (item.groupLabel) ri.label = item.groupLabel;
+      return ri;
+    })
+    .filter(
+      (ri: ResourceItem) =>
+        ri.url || ri.label || ri.totalBytes || ri.wastedBytes,
+    );
+
+  // Sort by the audit-appropriate key, descending
+  mapped.sort((a: ResourceItem, b: ResourceItem) => {
+    const aVal = (a[sortKey] as number) ?? 0;
+    const bVal = (b[sortKey] as number) ?? 0;
+    return bVal - aVal;
+  });
+
+  // Enforce item count limit, then character budget
+  let items = mapped.slice(0, maxItems);
+  let serialized = JSON.stringify(items);
+  while (serialized.length > MAX_ITEMS_CHARS && items.length > 3) {
+    items = items.slice(0, items.length - 1);
+    serialized = JSON.stringify(items);
+  }
+
+  return items.length > 0 ? items : undefined;
+}
+
+/** Extract top network requests sorted by transferSize */
+function extractNetworkRequests(audits: any): NetworkRequestItem[] | undefined {
+  const audit = audits["network-requests"];
+  const rawItems = audit?.details?.items;
+  if (!Array.isArray(rawItems) || rawItems.length === 0) return undefined;
+
+  const mapped: NetworkRequestItem[] = rawItems
+    .filter((item: any) => item.url && item.transferSize != null)
+    .map((item: any) => ({
+      url: stripUrlParams(item.url),
+      resourceType: item.resourceType || "Other",
+      transferSize: Math.round(item.transferSize),
+      startTime: Math.round(item.startTime || 0),
+      endTime: Math.round(item.endTime || 0),
+    }));
+
+  mapped.sort((a, b) => b.transferSize - a.transferSize);
+
+  return mapped.slice(0, MAX_NETWORK_REQUESTS);
+}
 
 export interface PSIFetchOptions {
   onRetry?: (attempt: number, maxRetries: number, reason: string) => void;
@@ -278,13 +378,22 @@ export async function fetchPSI(
       .map((id) => audits[id])
       .filter(Boolean)
       .filter((audit) => audit.score !== null && audit.score < 1)
-      .map((audit) => ({
-        id: audit.id,
-        title: audit.title,
-        description: audit.description,
-        score: audit.score,
-        displayValue: audit.displayValue,
-      }));
+      .map((audit) => {
+        const items = truncateItems(audit);
+        const totalCount = audit.details?.items?.length ?? 0;
+        const displaySuffix =
+          items && totalCount > items.length
+            ? ` (showing top ${items.length} of ${totalCount})`
+            : "";
+        return {
+          id: audit.id,
+          title: audit.title,
+          description: audit.description,
+          score: audit.score,
+          displayValue: (audit.displayValue ?? "") + displaySuffix,
+          items,
+        };
+      });
 
     // Extract opportunities
     const opportunityIds = [
@@ -311,14 +420,25 @@ export async function fetchPSI(
       .map((id) => audits[id])
       .filter(Boolean)
       .filter((audit) => audit.score !== null && audit.score < 1)
-      .map((audit) => ({
-        id: audit.id,
-        title: audit.title,
-        description: audit.description,
-        score: audit.score,
-        savings: audit.displayValue,
-        displayValue: audit.displayValue,
-      }));
+      .map((audit) => {
+        const items = truncateItems(audit);
+        const totalCount = audit.details?.items?.length ?? 0;
+        const displaySuffix =
+          items && totalCount > items.length
+            ? ` (showing top ${items.length} of ${totalCount})`
+            : "";
+        return {
+          id: audit.id,
+          title: audit.title,
+          description: audit.description,
+          score: audit.score,
+          savings: audit.displayValue,
+          displayValue: (audit.displayValue ?? "") + displaySuffix,
+          items,
+        };
+      });
+
+    const networkRequests = extractNetworkRequests(audits);
 
     return {
       strategy,
@@ -329,6 +449,7 @@ export async function fetchPSI(
       fieldData,
       diagnostics,
       opportunities,
+      networkRequests,
     };
   }
 

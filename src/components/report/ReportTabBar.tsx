@@ -1,11 +1,20 @@
 "use client";
 
-export type ReportTab = "inp" | "lcp" | "cls" | "third-party" | "priority";
+export type ReportTab =
+  | "inp"
+  | "fcp"
+  | "lcp"
+  | "cls"
+  | "duplicates"
+  | "third-party"
+  | "priority";
 
 const TABS: { id: ReportTab; label: string }[] = [
   { id: "inp", label: "INP" },
+  { id: "fcp", label: "FCP" },
   { id: "lcp", label: "LCP" },
   { id: "cls", label: "CLS" },
+  { id: "duplicates", label: "Duplicates" },
   { id: "third-party", label: "Third-Party" },
   { id: "priority", label: "Priority" },
 ];
