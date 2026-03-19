@@ -13,7 +13,11 @@ export interface UseAnalysisReturn {
   status: PipelineStatus | null;
   report: AnalysisReport | null;
   error: string | null;
-  start: (url: string, psiOnly?: boolean, techStack?: string) => Promise<void>;
+  start: (
+    url: string,
+    psiOnly?: boolean,
+    techStack?: string[],
+  ) => Promise<void>;
   cancel: () => Promise<void>;
   loadReport: (id: string) => Promise<void>;
   reset: () => void;
@@ -102,7 +106,7 @@ export function useAnalysis(): UseAnalysisReturn {
   });
 
   const start = useCallback(
-    async (url: string, psiOnly?: boolean, techStack?: string) => {
+    async (url: string, psiOnly?: boolean, techStack?: string[]) => {
       // Reset state
       setError(null);
       setReport(null);

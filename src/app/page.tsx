@@ -30,20 +30,19 @@ function useSettingsGear() {
 }
 
 const TECH_STACKS = [
-  { value: "", label: "Auto-detect" },
-  { value: "AEM", label: "AEM" },
-  { value: "WordPress", label: "WordPress" },
-  { value: "Shopify", label: "Shopify" },
-  { value: "Next.js", label: "Next.js" },
-  { value: "Angular", label: "Angular" },
-  { value: "React", label: "React" },
-  { value: "Vue", label: "Vue" },
-  { value: "Custom", label: "Custom" },
+  "AEM",
+  "WordPress",
+  "Shopify",
+  "Next.js",
+  "Angular",
+  "React",
+  "Vue",
+  "Custom",
 ];
 
 export default function Home() {
   const [url, setUrl] = useState("");
-  const [techStack, setTechStack] = useState("");
+  const [techStack, setTechStack] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const analysis = useAnalysis();
   const history = useHistory();
@@ -76,7 +75,11 @@ export default function Home() {
     track("analysis_started", { url: targetUrl });
     analysisStartTime.current = Date.now();
 
-    await analysis.start(targetUrl, false, techStack || undefined);
+    await analysis.start(
+      targetUrl,
+      false,
+      techStack.length > 0 ? techStack : undefined,
+    );
     // Refresh history after starting (it will show when done)
     setTimeout(() => history.refresh(), 2000);
   };
@@ -255,21 +258,38 @@ export default function Home() {
               )}
             </button>
           </div>
-          {/* Tech stack selector */}
-          <div className="flex items-center gap-2 mt-2">
-            <span className="text-xs text-vecton-dark/40">Tech Stack:</span>
-            <select
-              value={techStack}
-              onChange={(e) => setTechStack(e.target.value)}
-              disabled={isRunning}
-              className="text-xs bg-vecton-dark/5 border border-vecton-dark/10 text-vecton-dark/70 rounded px-2 py-1 focus:outline-none focus:border-vecton-orange/30 disabled:opacity-50"
-            >
-              {TECH_STACKS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
+          {/* Tech stack selector (multi-select pills) */}
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            <span className="text-xs text-vecton-dark/40">Stack:</span>
+            {TECH_STACKS.map((name) => {
+              const selected = techStack.includes(name);
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  disabled={isRunning}
+                  onClick={() =>
+                    setTechStack((prev) =>
+                      selected
+                        ? prev.filter((s) => s !== name)
+                        : [...prev, name],
+                    )
+                  }
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors disabled:opacity-50 ${
+                    selected
+                      ? "bg-vecton-orange/15 text-vecton-orange border-vecton-orange/30"
+                      : "bg-vecton-dark/3 text-vecton-dark/40 border-vecton-dark/10 hover:text-vecton-dark/60 hover:border-vecton-dark/20"
+                  }`}
+                >
+                  {name}
+                </button>
+              );
+            })}
+            {techStack.length === 0 && (
+              <span className="text-xs text-vecton-dark/30 italic">
+                Auto-detect
+              </span>
+            )}
           </div>
         </div>
 

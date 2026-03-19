@@ -22,7 +22,7 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 export async function startAnalysis(
   url: string,
   psiOnly?: boolean,
-  techStack?: string,
+  techStack?: string[],
 ): Promise<{ analysis_id: string }> {
   const response = await fetch("/api/analyze", {
     method: "POST",
@@ -30,7 +30,7 @@ export async function startAnalysis(
     body: JSON.stringify({
       url,
       ...(psiOnly && { psi_only: true }),
-      ...(techStack && { tech_stack: techStack }),
+      ...(techStack?.length && { tech_stack: techStack }),
     }),
   });
 
