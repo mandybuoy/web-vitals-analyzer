@@ -247,7 +247,7 @@ function extractFallbackSourceStats(psi: PSIResult): SourceStats {
 
 export interface PipelineOptions {
   psiOnly?: boolean;
-  techStack?: string;
+  techStack?: string[];
 }
 
 export async function runPipeline(
@@ -603,7 +603,7 @@ export async function runPipeline(
       extractedSignals,
       primaryPsi?.networkRequests,
     );
-    const userStack = options?.techStack ? [options.techStack] : [];
+    const userStack = options?.techStack ?? [];
     const finalTechStack = Array.from(
       new Set([...userStack, ...autoDetectedStack]),
     );

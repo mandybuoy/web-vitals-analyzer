@@ -13,8 +13,8 @@ interface ProgressBarProps {
 }
 
 const STAGES = [
-  { num: 1, name: "Collecting", desc: "PSI + HTML" },
-  { num: 2, name: "Extracting", desc: "HTML signals" },
+  { num: 1, name: "Collecting", desc: "PSI + HTML (parallel)" },
+  { num: 2, name: "Processing", desc: "Signals" },
   { num: 3, name: "Analyzing", desc: "Deep analysis" },
   { num: 4, name: "Generating", desc: "Report" },
 ] as const;
@@ -183,11 +183,6 @@ function CollectionSplitView({ status }: { status: PipelineStatus }) {
             endTime={cp.psi_mobile_end}
           />
         </div>
-        {cp.psi_detail && (
-          <p className="text-[11px] text-vecton-orange/60 font-mono mt-1.5 animate-pulse">
-            {cp.psi_detail}
-          </p>
-        )}
       </div>
 
       {/* HTML side */}
@@ -292,18 +287,14 @@ export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
           />
         </div>
 
-        {/* Detail / retry info */}
-        {status.detail && (
-          <p className="text-xs text-vecton-orange/70 font-mono mb-2 animate-pulse">
-            {status.detail}
+        {/* Detail / retry info + Cancel button */}
+        <div className="flex justify-between items-center">
+          <p className="text-xs text-vecton-orange/60 font-mono animate-pulse truncate mr-4">
+            {status.collection_progress?.psi_detail || status.detail || ""}
           </p>
-        )}
-
-        {/* Cancel button */}
-        <div className="flex justify-end items-center">
           <button
             onClick={onCancel}
-            className="text-xs text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors"
+            className="text-xs text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors flex-shrink-0"
           >
             Cancel
           </button>

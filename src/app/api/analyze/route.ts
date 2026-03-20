@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Fire-and-forget: don't await the pipeline
     runPipeline(analysisId, url, {
       psiOnly: !!psi_only,
-      techStack: tech_stack || undefined,
+      techStack: Array.isArray(tech_stack) ? tech_stack : undefined,
     }).catch((err) => {
       console.error("[analyze] Pipeline error:", err);
     });
