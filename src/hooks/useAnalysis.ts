@@ -23,7 +23,7 @@ export interface UseAnalysisReturn {
   reset: () => void;
 }
 
-const STALL_TIMEOUT_MS = 300_000;
+const STALL_TIMEOUT_MS = 480_000; // 8 min — matches server pipeline hard timeout
 
 export function useAnalysis(): UseAnalysisReturn {
   const [state, setState] = useState<AnalysisState>("idle");
@@ -33,10 +33,13 @@ export function useAnalysis(): UseAnalysisReturn {
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
 
-  const lastProgressRef = useRef<{ pct: number; time: number }>({
-    pct: 0,
-    time: Date.now(),
-  });
+  const lastProgressRef = useRef<{ pct: number; detail: string; time: number }>(
+    {
+      pct: 0,
+      detail: "",
+      time: Date.now(),
+    },
+  );
 
   const handleStatusUpdate = useCallback(async (data: PipelineStatus) => {
     setStatus(data);
@@ -49,12 +52,23 @@ export function useAnalysis(): UseAnalysisReturn {
       return;
     }
 
-    // Check stall timeout
-    if (data.progress_pct !== lastProgressRef.current.pct) {
-      lastProgressRef.current = { pct: data.progress_pct, time: Date.now() };
+    // Check stall timeout — reset timer on ANY status change (progress OR detail/heartbeat)
+    const currentDetail =
+      data.detail || data.collection_progress?.psi_detail || "";
+    if (
+      data.progress_pct !== lastProgressRef.current.pct ||
+      currentDetail !== lastProgressRef.current.detail
+    ) {
+      lastProgressRef.current = {
+        pct: data.progress_pct,
+        detail: currentDetail,
+        time: Date.now(),
+      };
     } else if (Date.now() - lastProgressRef.current.time > STALL_TIMEOUT_MS) {
       setState("error");
-      setError("Analysis timed out — no progress for 5 minutes");
+      setError(
+        "Analysis timed out — no progress for 8 minutes. The site may be unreachable or too complex for Google PSI.",
+      );
       setPolling(false);
       return;
     }
@@ -120,7 +134,7 @@ export function useAnalysis(): UseAnalysisReturn {
           techStack,
         );
         setAnalysisId(analysis_id);
-        lastProgressRef.current = { pct: 0, time: Date.now() };
+        lastProgressRef.current = { pct: 0, detail: "", time: Date.now() };
         setPolling(true);
       } catch (err) {
         setState("error");

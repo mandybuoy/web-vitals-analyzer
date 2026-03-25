@@ -399,8 +399,10 @@ export async function runPipeline(
         console.log(
           `[pipeline] Both PSI failed, cooling down ${PIPELINE_COOLDOWN_MS / 1000}s before attempt ${pipelineAttempt + 1}/3...`,
         );
+        // Bump progress_pct so client stall detection sees forward movement
+        updateStage(analysisId, 1, "Collecting", 2 + pipelineAttempt * 3);
         updateCollectionProgress(analysisId, {
-          psi_detail: "Waiting 15s before retry...",
+          psi_detail: `Cooling down before retry ${pipelineAttempt + 1}/3...`,
           psi_desktop: "pending",
           psi_mobile: "pending",
         });
