@@ -158,7 +158,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
           )}
 
           {error && (
-            <div className="mb-4 p-3 rounded bg-[#ff4e42]/8 border border-[#ff4e42]/15 text-xs text-[#ff4e42]">
+            <div className="mb-4 p-3 rounded bg-vital-poor/8 border border-vital-poor/15 text-xs text-vital-poor">
               {error}
             </div>
           )}
@@ -279,7 +279,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                     )}
 
                     {promptsError && (
-                      <div className="p-2 rounded bg-[#ff4e42]/8 border border-[#ff4e42]/15 text-xs text-[#ff4e42]">
+                      <div className="p-2 rounded bg-vital-poor/8 border border-vital-poor/15 text-xs text-vital-poor">
                         {promptsError}
                       </div>
                     )}

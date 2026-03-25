@@ -34,7 +34,7 @@ function ScriptSummarySection({ scripts }: { scripts: ScriptImpactItem[] }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-3 mb-3 w-full text-left"
       >
-        <div className="w-4 h-[1px] bg-[#ff4e42]/40" />
+        <div className="w-4 h-[1px] bg-vital-poor/40" />
         <h4 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
           Scripts by Main Thread Time
         </h4>
@@ -74,7 +74,7 @@ function ScriptSummarySection({ scripts }: { scripts: ScriptImpactItem[] }) {
                   >
                     {truncateUrl(s.url)}
                   </td>
-                  <td className="py-1.5 px-2 text-right font-mono text-[#ff4e42]/80">
+                  <td className="py-1.5 px-2 text-right font-mono text-vital-poor/80">
                     {s.mainThreadTime != null
                       ? `${Math.round(s.mainThreadTime)}ms`
                       : "—"}
@@ -149,7 +149,7 @@ function JSAnalysisSection({ results }: { results: JSAnalysisResult[] }) {
                 <div className="flex items-center gap-2 text-xs text-vecton-dark/50">
                   <span>{formatBytes(result.sizeBytes)}</span>
                   {result.mainThreadTime > 0 && (
-                    <span className="text-[#ff4e42]/80">
+                    <span className="text-vital-poor/80">
                       {Math.round(result.mainThreadTime)}ms
                     </span>
                   )}
@@ -239,6 +239,14 @@ export default function MetricTab({
       {jsAnalysis && jsAnalysis.length > 0 && (
         <JSAnalysisSection results={jsAnalysis} />
       )}
+
+      {/* Visual separator between data sections and issue groups */}
+      {(scriptSummary?.length || jsAnalysis?.length) &&
+      (firstParty.length > 0 ||
+        thirdParty.length > 0 ||
+        observations.length > 0) ? (
+        <div className="border-t border-vecton-dark/8 -mx-1 mt-2 mb-2" />
+      ) : null}
 
       {firstParty.length > 0 && (
         <div>

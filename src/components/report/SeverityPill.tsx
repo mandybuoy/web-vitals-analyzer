@@ -3,10 +3,10 @@
 import type { Severity } from "@/lib/types";
 
 const COLORS: Record<Severity, { bg: string; text: string }> = {
-  critical: { bg: "bg-[#ff4e42]/10", text: "text-[#ff4e42]" },
-  high: { bg: "bg-[#ff4e42]/8", text: "text-[#ff4e42]/80" },
-  medium: { bg: "bg-[#ffa400]/10", text: "text-[#ffa400]" },
-  low: { bg: "bg-[#0cce6b]/10", text: "text-[#0cce6b]" },
+  critical: { bg: "bg-vital-poor/10", text: "text-vital-poor" },
+  high: { bg: "bg-vital-poor/8", text: "text-vital-poor/80" },
+  medium: { bg: "bg-vital-needs/10", text: "text-vital-needs" },
+  low: { bg: "bg-vital-good/10", text: "text-vital-good" },
 };
 
 export default function SeverityPill({ severity }: { severity: Severity }) {

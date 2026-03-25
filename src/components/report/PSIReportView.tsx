@@ -16,15 +16,15 @@ function formatMetricValue(metric: string, value: number): string {
 }
 
 function scoreColor(score: number): string {
-  if (score >= 0.9) return "text-[#0cce6b]";
-  if (score >= 0.5) return "text-[#ffa400]";
-  return "text-[#ff4e42]";
+  if (score >= 0.9) return "text-vital-good";
+  if (score >= 0.5) return "text-vital-needs";
+  return "text-vital-poor";
 }
 
 function scoreBg(score: number): string {
-  if (score >= 0.9) return "bg-[#0cce6b]/10";
-  if (score >= 0.5) return "bg-[#ffa400]/10";
-  return "bg-[#ff4e42]/10";
+  if (score >= 0.9) return "bg-vital-good/10";
+  if (score >= 0.5) return "bg-vital-needs/10";
+  return "bg-vital-poor/10";
 }
 
 function SourceBadge({ label }: { label: string }) {
@@ -41,9 +41,9 @@ function FieldDataBadge({
   category: "FAST" | "AVERAGE" | "SLOW";
 }) {
   const styles = {
-    FAST: "bg-[#0cce6b]/10 text-[#0cce6b]",
-    AVERAGE: "bg-[#ffa400]/10 text-[#ffa400]",
-    SLOW: "bg-[#ff4e42]/10 text-[#ff4e42]",
+    FAST: "bg-vital-good/10 text-vital-good",
+    AVERAGE: "bg-vital-needs/10 text-vital-needs",
+    SLOW: "bg-vital-poor/10 text-vital-poor",
   };
   const labels = { FAST: "Good", AVERAGE: "Needs Work", SLOW: "Poor" };
   return (
@@ -334,7 +334,7 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
           {report.warnings.map((w, i) => (
             <div
               key={i}
-              className="text-xs text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-2 rounded"
+              className="text-xs text-vital-needs bg-vital-needs/8 border border-vital-needs/15 px-3 py-2 rounded"
             >
               {w}
             </div>
@@ -402,10 +402,10 @@ export default function PSIReportView({ report }: PSIReportViewProps) {
                   className={`ml-1 text-[11px] px-1.5 py-0.5 rounded
                     ${
                       score >= 90
-                        ? "bg-[#0cce6b]/10 text-[#0cce6b]"
+                        ? "bg-vital-good/10 text-vital-good"
                         : score >= 50
-                          ? "bg-[#ffa400]/10 text-[#ffa400]"
-                          : "bg-[#ff4e42]/10 text-[#ff4e42]"
+                          ? "bg-vital-needs/10 text-vital-needs"
+                          : "bg-vital-poor/10 text-vital-poor"
                     }`}
                 >
                   {score}

@@ -68,7 +68,7 @@ export default function DuplicatesTab({ duplicates }: DuplicatesTabProps) {
                   </span>
                 </td>
                 <td className="py-2.5 px-2 text-center">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#ff4e42]/10 text-[#ff4e42] text-xs font-medium">
+                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-vital-poor/10 text-vital-poor text-xs font-medium">
                     {d.count}x
                   </span>
                 </td>
@@ -98,7 +98,7 @@ export default function DuplicatesTab({ duplicates }: DuplicatesTabProps) {
               {d.url}
             </p>
             <div className="flex items-center gap-3 text-xs">
-              <span className="inline-flex items-center gap-1 text-[#ff4e42]">
+              <span className="inline-flex items-center gap-1 text-vital-poor">
                 <span className="font-medium">{d.count}x</span> loaded
               </span>
               <span className="text-vecton-dark/50">

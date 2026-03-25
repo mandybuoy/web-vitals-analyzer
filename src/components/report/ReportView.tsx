@@ -33,26 +33,26 @@ export default function ReportView({ report }: ReportViewProps) {
 
   return (
     <div
-      className="mt-10 animate-fade-up"
+      className="mt-12 animate-fade-up"
       style={{ animationFillMode: "forwards" }}
     >
       {/* URL & timestamp */}
-      <div className="mb-6">
+      <div className="mb-8">
         <p className="text-xs text-vecton-dark/60 font-mono truncate">
           {report.url}
         </p>
-        <p className="text-xs text-vecton-dark/50 mt-1">
-          Analyzed {new Date(report.timestamp).toLocaleString()}
+        <p className="text-[11px] text-vecton-dark/40 mt-1">
+          {new Date(report.timestamp).toLocaleString()}
         </p>
       </div>
 
       {/* Warnings */}
       {report.warnings.length > 0 && (
-        <div className="mb-4 space-y-1">
+        <div className="mb-6 space-y-1.5">
           {report.warnings.map((w, i) => (
             <div
               key={i}
-              className="text-xs text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-2 rounded"
+              className="text-xs text-vital-needs bg-vital-needs/8 border border-vital-needs/15 px-3 py-2 rounded"
             >
               {w}
             </div>
@@ -60,8 +60,8 @@ export default function ReportView({ report }: ReportViewProps) {
         </div>
       )}
 
-      {/* Device toggle */}
-      <div className="flex gap-2 mb-8">
+      {/* Device toggle — sits above summary, tight to content */}
+      <div className="flex gap-2 mb-5">
         {(["mobile", "desktop"] as const).map((tab) => {
           const available = tab === "mobile" ? hasMobile : hasDesktop;
           const isActive = activeDevice === tab;
@@ -79,7 +79,7 @@ export default function ReportView({ report }: ReportViewProps) {
                 }
               }}
               disabled={!available}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all focus-ring press-scale
                 ${
                   isActive
                     ? "bg-vecton-orange/10 text-vecton-orange border border-vecton-orange/20"
@@ -120,10 +120,10 @@ export default function ReportView({ report }: ReportViewProps) {
                   className={`ml-1 text-[11px] px-1.5 py-0.5 rounded
                     ${
                       score >= 90
-                        ? "bg-[#0cce6b]/10 text-[#0cce6b]"
+                        ? "bg-vital-good/10 text-vital-good"
                         : score >= 50
-                          ? "bg-[#ffa400]/10 text-[#ffa400]"
-                          : "bg-[#ff4e42]/10 text-[#ff4e42]"
+                          ? "bg-vital-needs/10 text-vital-needs"
+                          : "bg-vital-poor/10 text-vital-poor"
                     }`}
                 >
                   {Math.round(score)}
@@ -147,7 +147,7 @@ export default function ReportView({ report }: ReportViewProps) {
             networkStack={report.network_stack}
           />
 
-          <div className="mt-8">
+          <div className="mt-10">
             <ReportTabBar
               active={activeTab}
               onChange={(tab) => {
@@ -155,7 +155,10 @@ export default function ReportView({ report }: ReportViewProps) {
                 setActiveTab(tab);
               }}
             />
-            <div className="p-5 sm:p-6 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px]">
+            <div
+              key={activeTab}
+              className="p-5 sm:p-6 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px] animate-tab-enter"
+            >
               {activeTab === "inp" && (
                 <MetricTab
                   issues={device.inp_analysis.issues}
