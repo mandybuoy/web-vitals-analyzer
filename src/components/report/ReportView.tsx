@@ -144,6 +144,7 @@ export default function ReportView({ report }: ReportViewProps) {
             device={device}
             sourceStats={report.source_stats}
             techStack={report.tech_stack}
+            networkStack={report.network_stack}
           />
 
           <div className="mt-8">
@@ -160,6 +161,7 @@ export default function ReportView({ report }: ReportViewProps) {
                   issues={device.inp_analysis.issues}
                   metricLabel="INP"
                   scriptSummary={device.inp_script_summary}
+                  jsAnalysis={device.js_analysis}
                 />
               )}
               {activeTab === "fcp" && (
@@ -193,8 +195,95 @@ export default function ReportView({ report }: ReportViewProps) {
           </div>
         </>
       ) : (
-        <div className="py-8 text-center text-sm text-vecton-dark/40">
-          No data available for {activeDevice}
+        <div className="space-y-4">
+          {/* Show source stats and network stack even without device-level analysis */}
+          {(report.source_stats.dom_nodes > 0 ||
+            report.tech_stack?.length ||
+            report.network_stack) && (
+            <div className="space-y-4">
+              {/* Secondary stats */}
+              {report.source_stats.dom_nodes > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "DOM Nodes",
+                      value: report.source_stats.dom_nodes.toLocaleString(),
+                    },
+                    {
+                      label: "HTML Size",
+                      value: `${report.source_stats.html_size_kb} KB`,
+                    },
+                    {
+                      label: "Scripts",
+                      value: `${report.source_stats.total_scripts} (${report.source_stats.render_blocking_scripts} blocking)`,
+                    },
+                    {
+                      label: "3P Domains",
+                      value: String(report.source_stats.third_party_domains),
+                    },
+                  ].map((s) => (
+                    <div
+                      key={s.label}
+                      className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
+                    >
+                      <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
+                        {s.label}
+                      </p>
+                      <p className="text-sm text-vecton-dark/70 font-mono">
+                        {s.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Tech stack pills */}
+              {report.tech_stack && report.tech_stack.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+                    Stack
+                  </span>
+                  {report.tech_stack.map((t) => (
+                    <span
+                      key={t}
+                      className="text-xs px-2 py-0.5 rounded-full bg-vecton-orange/10 text-vecton-orange/80 border border-vecton-orange/15"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Network stack */}
+              {report.network_stack && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+                    Network
+                  </span>
+                  {report.network_stack.cdn && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600/80 border border-blue-500/15">
+                      CDN: {report.network_stack.cdn}
+                    </span>
+                  )}
+                  {report.network_stack.server && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600/80 border border-purple-500/15">
+                      Server: {report.network_stack.server}
+                    </span>
+                  )}
+                  {report.network_stack.compression && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600/80 border border-green-500/15">
+                      {report.network_stack.compression}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="py-8 text-center text-sm text-vecton-dark/40">
+            Detailed metric analysis unavailable — PSI data could not be
+            retrieved for this site
+          </div>
         </div>
       )}
     </div>

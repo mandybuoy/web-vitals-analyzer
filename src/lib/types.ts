@@ -20,7 +20,14 @@ export interface PSIResult {
   diagnostics: DiagnosticItem[];
   opportunities: OpportunityItem[];
   networkRequests?: NetworkRequestItem[];
+  scriptTreemap?: ScriptTreemapModule[];
   screenshots?: string[];
+}
+
+export interface ScriptTreemapModule {
+  name: string;
+  resourceBytes: number;
+  unusedBytes?: number;
 }
 
 export interface FieldData {
@@ -287,6 +294,33 @@ export interface DeviceReport {
   third_party_matrix: ThirdPartyEntry[];
   priority_table: PriorityFix[];
   inp_script_summary?: ScriptImpactItem[];
+  js_analysis?: JSAnalysisResult[];
+}
+
+// ----- Network Stack Info -----
+
+export interface NetworkStackInfo {
+  cdn?: string;
+  server?: string;
+  compression?: string;
+  cacheStatus?: string;
+  headers: Record<string, string>;
+}
+
+// ----- JS Analysis (INP deep analysis) -----
+
+export interface JSPattern {
+  type: string;
+  description: string;
+  evidence: string;
+  suggestion: string;
+}
+
+export interface JSAnalysisResult {
+  url: string;
+  sizeBytes: number;
+  mainThreadTime: number;
+  patterns: JSPattern[];
 }
 
 // ----- Top-Level Analysis Report -----
@@ -301,6 +335,7 @@ export interface AnalysisReport {
   warnings: string[];
   tech_stack?: string[];
   duplicate_resources?: DuplicateResource[];
+  network_stack?: NetworkStackInfo;
   // PSI-only mode fields (stages 1-2 only, no LLM analysis)
   psi_only?: boolean;
   mobile_psi?: PSIResult;

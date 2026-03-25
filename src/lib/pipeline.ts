@@ -23,6 +23,9 @@ import { getSetting } from "./db";
 import { DEFAULT_EXTRACTION_MODEL, DEFAULT_INTELLIGENCE_MODEL } from "./config";
 import { fetchHTML } from "./html-fetcher";
 import { callOpenRouter } from "./openrouter";
+import { detectNetworkStack } from "./network-stack";
+import { analyzeTopScripts } from "./js-analyzer";
+import type { NetworkStackInfo, JSAnalysisResult } from "./types";
 import {
   buildExtractionPrompt,
   buildTier2Prompt,
@@ -39,6 +42,7 @@ import {
   setComplete,
   setInMemoryReport,
   getAbortSignal,
+  cancelPipeline,
   updateCollectionProgress,
 } from "./pipeline-store";
 
@@ -250,6 +254,15 @@ export interface PipelineOptions {
   techStack?: string[];
 }
 
+const PIPELINE_TOTAL_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes max
+
+class PipelineTimeoutError extends Error {
+  constructor() {
+    super("Pipeline exceeded maximum time limit (8 minutes)");
+    this.name = "PipelineTimeoutError";
+  }
+}
+
 export async function runPipeline(
   analysisId: string,
   url: string,
@@ -257,10 +270,25 @@ export async function runPipeline(
 ): Promise<void> {
   const psiOnly = options?.psiOnly ?? false;
   const warnings: string[] = [];
+  const pipelineStart = Date.now();
+
+  // Hard timeout: abort all in-flight requests after 8 minutes
+  const pipelineTimeout = setTimeout(() => {
+    console.warn(`[pipeline] Hard timeout reached for ${analysisId}, aborting`);
+    cancelPipeline(analysisId);
+  }, PIPELINE_TOTAL_TIMEOUT_MS);
+
+  /** Throw if pipeline has exceeded total time budget */
+  const checkPipelineTimeout = () => {
+    if (Date.now() - pipelineStart > PIPELINE_TOTAL_TIMEOUT_MS) {
+      throw new PipelineTimeoutError();
+    }
+  };
 
   try {
     // ===== STAGE 1: Data Collection + Extraction (all in parallel) =====
     checkAbort(analysisId);
+    checkPipelineTimeout();
 
     const psiApiKey = getGoogleApiKey();
     if (!psiApiKey) {
@@ -316,14 +344,23 @@ export async function runPipeline(
           html_extract: "done",
           html_extract_end: new Date().toISOString(),
         });
-        return { html, extracted: result.data };
+        return {
+          html,
+          extracted: result.data,
+          networkStack: detectNetworkStack(html.responseHeaders),
+        };
       } catch (err) {
         console.warn("[pipeline] HTML extraction failed:", err);
         updateCollectionProgress(analysisId, {
           html_extract: "failed",
           html_extract_end: new Date().toISOString(),
         });
-        return null;
+        // Still return network stack even if extraction fails
+        return {
+          html,
+          extracted: null,
+          networkStack: detectNetworkStack(html.responseHeaders),
+        };
       }
     })();
 
@@ -388,7 +425,7 @@ export async function runPipeline(
       const heartbeat = setInterval(() => {
         const elapsed = Math.round((Date.now() - heartbeatStart) / 1000);
         updateCollectionProgress(analysisId, {
-          psi_detail: `Google is analyzing the page... ${elapsed}s (large sites can take up to 3 min)`,
+          psi_detail: `Google is analyzing the page... ${elapsed}s (attempt ${pipelineAttempt + 1}/${PIPELINE_PSI_RETRIES + 1}, large sites can take up to 3 min)`,
         });
       }, 10_000);
 
@@ -516,15 +553,61 @@ export async function runPipeline(
       if (mobilePsi || desktopPsi) break;
     }
 
+    // Await HTML extraction (started in parallel, should be done by now)
+    const htmlExtraction = await htmlAndExtractionPromise;
+
     if (!mobilePsi && !desktopPsi) {
       const friendly = friendlyPsiError(lastPsiError);
+
+      // Graceful fallback: if HTML extraction succeeded, produce partial report
+      if (htmlExtraction) {
+        warnings.push(
+          `PSI analysis failed for both devices — ${friendly} Showing HTML-based signals only.`,
+        );
+
+        const fallbackSignals: ExtractedSignals | null =
+          (htmlExtraction.extracted as ExtractedSignals | null) ?? null;
+        const fallbackNetworkStack: NetworkStackInfo | undefined =
+          htmlExtraction.networkStack ?? undefined;
+        const fallbackSourceStats = fallbackSignals
+          ? extractedSignalsToSourceStats(fallbackSignals)
+          : EMPTY_SOURCE_STATS;
+        const fallbackTechStack = Array.from(
+          new Set([
+            ...(options?.techStack ?? []),
+            ...detectTechStack(fallbackSignals, undefined),
+          ]),
+        );
+
+        const partialReport: AnalysisReport = {
+          id: analysisId,
+          url,
+          timestamp: new Date().toISOString(),
+          source_stats: fallbackSourceStats,
+          mobile: null,
+          desktop: null,
+          warnings,
+          tech_stack:
+            fallbackTechStack.length > 0 ? fallbackTechStack : undefined,
+          network_stack: fallbackNetworkStack,
+          source_stats_source: fallbackSignals
+            ? "html_extraction"
+            : "psi_fallback",
+        };
+
+        try {
+          saveAnalysis(partialReport);
+        } catch (err) {
+          console.warn("[pipeline] Failed to save partial report:", err);
+        }
+        setComplete(analysisId);
+        return;
+      }
+
       throw new Error(
         `Could not analyze this page. ${friendly} Please try again.`,
       );
     }
-
-    // Await HTML extraction (started in parallel, should be done by now)
-    const htmlExtraction = await htmlAndExtractionPromise;
 
     if (!mobilePsi) {
       warnings.push(
@@ -544,10 +627,13 @@ export async function runPipeline(
 
     // ===== STAGE 2: Signal Processing (results already available from Stage 1) =====
     checkAbort(analysisId);
+    checkPipelineTimeout();
 
     const fetchedHtml = htmlExtraction?.html ?? null;
     const extractedSignals: ExtractedSignals | null =
-      htmlExtraction?.extracted ?? null;
+      (htmlExtraction?.extracted as ExtractedSignals | null) ?? null;
+    const networkStack: NetworkStackInfo | undefined =
+      htmlExtraction?.networkStack ?? undefined;
     let sourceStats: SourceStats = EMPTY_SOURCE_STATS;
 
     let sourceStatsSource: "html_extraction" | "psi_fallback" = "psi_fallback";
@@ -591,6 +677,7 @@ export async function runPipeline(
 
     // ===== STAGE 3: Deep Analysis (Opus, parallel mobile + desktop) =====
     checkAbort(analysisId);
+    checkPipelineTimeout();
 
     const intelligenceModel =
       getSetting("intelligence_model") ?? DEFAULT_INTELLIGENCE_MODEL;
@@ -629,6 +716,20 @@ export async function runPipeline(
       psiResult: PSIResult,
       device: "mobile" | "desktop",
     ): Promise<DeviceReport> => {
+      // Extract script summary for INP analysis
+      const scriptSummary = extractScriptSummary(psiResult);
+
+      // Start JS file analysis in parallel with LLM call
+      const jsAnalysisPromise =
+        scriptSummary.length > 0
+          ? analyzeTopScripts(scriptSummary, getAbortSignal(analysisId)).catch(
+              (err) => {
+                console.warn("[pipeline] JS analysis failed:", err);
+                return [] as JSAnalysisResult[];
+              },
+            )
+          : Promise.resolve([] as JSAnalysisResult[]);
+
       const { system, user } = buildTier2Prompt(
         psiResult,
         extractedSignals,
@@ -638,15 +739,19 @@ export async function runPipeline(
         { techStack: finalTechStack, duplicates: duplicateResources },
       );
 
-      const result = await callOpenRouter({
-        model: intelligenceModel,
-        systemPrompt: system,
-        userPrompt: user,
-        schema: deviceReportSchema,
-        analysisId,
-        tier: "intelligence",
-        signal: getAbortSignal(analysisId),
-      });
+      // Run LLM call and JS analysis in parallel
+      const [result, jsAnalysis] = await Promise.all([
+        callOpenRouter({
+          model: intelligenceModel,
+          systemPrompt: system,
+          userPrompt: user,
+          schema: deviceReportSchema,
+          analysisId,
+          tier: "intelligence",
+          signal: getAbortSignal(analysisId),
+        }),
+        jsAnalysisPromise,
+      ]);
 
       const data: DeviceReport = result.data as DeviceReport;
 
@@ -659,9 +764,13 @@ export async function runPipeline(
       }
 
       // Attach INP script summary from PSI bootup-time data
-      const scriptSummary = extractScriptSummary(psiResult);
       if (scriptSummary.length > 0) {
         data.inp_script_summary = scriptSummary;
+      }
+
+      // Attach JS analysis results
+      if (jsAnalysis.length > 0) {
+        data.js_analysis = jsAnalysis;
       }
 
       return data;
@@ -700,6 +809,7 @@ export async function runPipeline(
 
     // ===== STAGE 4: Report Assembly =====
     checkAbort(analysisId);
+    checkPipelineTimeout();
 
     const report: AnalysisReport = {
       id: analysisId,
@@ -712,6 +822,7 @@ export async function runPipeline(
       tech_stack: finalTechStack.length > 0 ? finalTechStack : undefined,
       duplicate_resources:
         duplicateResources.length > 0 ? duplicateResources : undefined,
+      network_stack: networkStack,
       source_stats_source: sourceStatsSource,
     };
 
@@ -723,8 +834,27 @@ export async function runPipeline(
       warnings.push("Report saved in memory only — database write failed");
     }
 
+    clearTimeout(pipelineTimeout);
     setComplete(analysisId);
   } catch (err) {
+    clearTimeout(pipelineTimeout);
+
+    // Detect hard timeout abort (cancelPipeline triggers AbortError)
+    const isTimeout =
+      err instanceof PipelineTimeoutError ||
+      (err instanceof Error &&
+        /abort|cancel/i.test(err.message) &&
+        Date.now() - pipelineStart >= PIPELINE_TOTAL_TIMEOUT_MS - 5000);
+
+    if (isTimeout) {
+      const elapsed = Math.round((Date.now() - pipelineStart) / 1000);
+      console.error(`[pipeline] Timed out after ${elapsed}s for ${url}`);
+      setError(
+        analysisId,
+        `Analysis timed out after ${elapsed} seconds. This site may be too complex or slow. Please try again — subsequent attempts are often faster as Google caches intermediate results.`,
+      );
+      return;
+    }
     const message =
       err instanceof Error ? err.message : "Unknown pipeline error";
     console.error("[pipeline] Error:", message);

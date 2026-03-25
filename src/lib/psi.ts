@@ -21,6 +21,7 @@ import type {
   OpportunityItem,
   ResourceItem,
   NetworkRequestItem,
+  ScriptTreemapModule,
 } from "./types";
 
 // Thresholds for Core Web Vitals
@@ -185,6 +186,31 @@ function extractNetworkRequests(audits: any): NetworkRequestItem[] | undefined {
   mapped.sort((a, b) => b.transferSize - a.transferSize);
 
   return mapped.slice(0, MAX_NETWORK_REQUESTS);
+}
+
+/** Extract script treemap data (module-level JS breakdown) */
+function extractScriptTreemap(
+  audits: Record<string, any>,
+): ScriptTreemapModule[] | undefined {
+  const audit = audits["script-treemap-data"];
+  const nodes = audit?.details?.nodes;
+  if (!Array.isArray(nodes) || nodes.length === 0) return undefined;
+
+  const modules: ScriptTreemapModule[] = nodes
+    .filter((node: any) => node.name && typeof node.resourceBytes === "number")
+    .map((node: any) => ({
+      name: node.name,
+      resourceBytes: Math.round(node.resourceBytes),
+      unusedBytes:
+        node.unusedBytes != null ? Math.round(node.unusedBytes) : undefined,
+    }))
+    .sort(
+      (a: ScriptTreemapModule, b: ScriptTreemapModule) =>
+        b.resourceBytes - a.resourceBytes,
+    )
+    .slice(0, 15);
+
+  return modules.length > 0 ? modules : undefined;
 }
 
 export interface PSIFetchOptions {
@@ -439,6 +465,7 @@ export async function fetchPSI(
       });
 
     const networkRequests = extractNetworkRequests(audits);
+    const scriptTreemap = extractScriptTreemap(audits);
 
     return {
       strategy,
@@ -450,6 +477,7 @@ export async function fetchPSI(
       diagnostics,
       opportunities,
       networkRequests,
+      scriptTreemap,
     };
   }
 

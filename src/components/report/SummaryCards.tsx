@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeviceReport, SourceStats } from "@/lib/types";
+import type { DeviceReport, SourceStats, NetworkStackInfo } from "@/lib/types";
 import ScoreGauge from "../ScoreGauge";
 import RatingPill from "./RatingPill";
 
@@ -8,6 +8,7 @@ interface SummaryCardsProps {
   device: DeviceReport;
   sourceStats: SourceStats;
   techStack?: string[];
+  networkStack?: NetworkStackInfo;
 }
 
 function formatMetricValue(metric: string, value: number): string {
@@ -20,6 +21,7 @@ export default function SummaryCards({
   device,
   sourceStats,
   techStack,
+  networkStack,
 }: SummaryCardsProps) {
   const { field_metrics, lab_metrics } = device;
 
@@ -142,6 +144,46 @@ export default function SummaryCards({
               {t}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Network stack info */}
+      {networkStack && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+            Network
+          </span>
+          {networkStack.cdn && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600/80 border border-blue-500/15">
+              CDN: {networkStack.cdn}
+            </span>
+          )}
+          {!networkStack.cdn && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-400/10 text-gray-500/80 border border-gray-400/15">
+              No CDN detected
+            </span>
+          )}
+          {networkStack.server && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600/80 border border-purple-500/15">
+              Server: {networkStack.server}
+            </span>
+          )}
+          {networkStack.compression && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600/80 border border-green-500/15">
+              {networkStack.compression}
+            </span>
+          )}
+          {networkStack.cacheStatus && (
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full border ${
+                networkStack.cacheStatus.toUpperCase().includes("HIT")
+                  ? "bg-green-500/10 text-green-600/80 border-green-500/15"
+                  : "bg-amber-500/10 text-amber-600/80 border-amber-500/15"
+              }`}
+            >
+              Cache: {networkStack.cacheStatus}
+            </span>
+          )}
         </div>
       )}
     </div>
