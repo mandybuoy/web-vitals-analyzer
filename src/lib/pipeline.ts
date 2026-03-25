@@ -254,11 +254,11 @@ export interface PipelineOptions {
   techStack?: string[];
 }
 
-const PIPELINE_TOTAL_TIMEOUT_MS = 8 * 60 * 1000; // 8 minutes max
+const PIPELINE_TOTAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max
 
 class PipelineTimeoutError extends Error {
   constructor() {
-    super("Pipeline exceeded maximum time limit (8 minutes)");
+    super("Pipeline exceeded maximum time limit (10 minutes)");
     this.name = "PipelineTimeoutError";
   }
 }
@@ -284,6 +284,17 @@ export async function runPipeline(
       throw new PipelineTimeoutError();
     }
   };
+
+  // Hoisted so timeout catch can access for partial report
+  let htmlExtractionResult: Awaited<
+    ReturnType<
+      () => Promise<{
+        html: any;
+        extracted: any;
+        networkStack: any;
+      } | null>
+    >
+  > = null;
 
   try {
     // ===== STAGE 1: Data Collection + Extraction (all in parallel) =====
@@ -364,7 +375,7 @@ export async function runPipeline(
       }
     })();
 
-    const psiRetryHandler = (device: string) => ({
+    const psiOptions = (device: string) => ({
       onRetry: (attempt: number, max: number, reason: string) => {
         const short = /NO_FCP|NO_LCP/.test(reason)
           ? "page render failed"
@@ -375,6 +386,7 @@ export async function runPipeline(
           psi_detail: `Retrying ${device} (${attempt}/${max}) — ${short}`,
         });
       },
+      signal: getAbortSignal(analysisId),
     });
 
     // --- Pipeline-level PSI retry ---
@@ -437,7 +449,7 @@ export async function runPipeline(
             psi_mobile: "running",
             psi_mobile_start: new Date().toISOString(),
           });
-          fetchPSI(url, "mobile", psiApiKey, psiRetryHandler("mobile"))
+          fetchPSI(url, "mobile", psiApiKey, psiOptions("mobile"))
             .then((result) => {
               updateCollectionProgress(analysisId, {
                 psi_mobile: "done",
@@ -459,7 +471,7 @@ export async function runPipeline(
         url,
         "desktop",
         psiApiKey,
-        psiRetryHandler("desktop"),
+        psiOptions("desktop"),
       )
         .then((result) => {
           updateCollectionProgress(analysisId, {
@@ -509,7 +521,7 @@ export async function runPipeline(
             url,
             "mobile",
             psiApiKey,
-            psiRetryHandler("mobile"),
+            psiOptions("mobile"),
           );
           updateCollectionProgress(analysisId, {
             psi_mobile: "done",
@@ -535,7 +547,7 @@ export async function runPipeline(
             url,
             "desktop",
             psiApiKey,
-            psiRetryHandler("desktop"),
+            psiOptions("desktop"),
           );
           updateCollectionProgress(analysisId, {
             psi_desktop: "done",
@@ -557,6 +569,7 @@ export async function runPipeline(
 
     // Await HTML extraction (started in parallel, should be done by now)
     const htmlExtraction = await htmlAndExtractionPromise;
+    htmlExtractionResult = htmlExtraction; // Save for timeout catch partial report
 
     if (!mobilePsi && !desktopPsi) {
       const friendly = friendlyPsiError(lastPsiError);
@@ -851,6 +864,56 @@ export async function runPipeline(
     if (isTimeout) {
       const elapsed = Math.round((Date.now() - pipelineStart) / 1000);
       console.error(`[pipeline] Timed out after ${elapsed}s for ${url}`);
+
+      // Attempt partial report if HTML extraction completed
+      if (htmlExtractionResult) {
+        try {
+          const fallbackSignals =
+            (htmlExtractionResult.extracted as ExtractedSignals | null) ?? null;
+          const fallbackNetworkStack =
+            htmlExtractionResult.networkStack ?? undefined;
+          const fallbackSourceStats = fallbackSignals
+            ? extractedSignalsToSourceStats(fallbackSignals)
+            : EMPTY_SOURCE_STATS;
+          const fallbackTechStack = Array.from(
+            new Set([
+              ...(options?.techStack ?? []),
+              ...detectTechStack(fallbackSignals, undefined),
+            ]),
+          );
+
+          const partialReport: AnalysisReport = {
+            id: analysisId,
+            url,
+            timestamp: new Date().toISOString(),
+            source_stats: fallbackSourceStats,
+            mobile: null,
+            desktop: null,
+            warnings: [
+              `PSI analysis timed out after ${elapsed}s — showing HTML-based signals only. Try again for a full report.`,
+            ],
+            tech_stack:
+              fallbackTechStack.length > 0 ? fallbackTechStack : undefined,
+            network_stack: fallbackNetworkStack,
+            source_stats_source: fallbackSignals
+              ? "html_extraction"
+              : "psi_fallback",
+          };
+
+          saveAnalysis(partialReport);
+          console.log(
+            `[pipeline] Saved partial report for ${url} after timeout`,
+          );
+          setComplete(analysisId);
+          return;
+        } catch (partialErr) {
+          console.warn(
+            "[pipeline] Failed to save partial report on timeout:",
+            partialErr,
+          );
+        }
+      }
+
       setError(
         analysisId,
         `Analysis timed out after ${elapsed} seconds. This site may be too complex or slow. Please try again — subsequent attempts are often faster as Google caches intermediate results.`,

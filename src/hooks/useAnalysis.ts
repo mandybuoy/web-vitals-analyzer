@@ -23,7 +23,7 @@ export interface UseAnalysisReturn {
   reset: () => void;
 }
 
-const STALL_TIMEOUT_MS = 480_000; // 8 min — matches server pipeline hard timeout
+const STALL_TIMEOUT_MS = 660_000; // 11 min — exceeds server pipeline hard timeout (10 min) so server always errors first
 
 export function useAnalysis(): UseAnalysisReturn {
   const [state, setState] = useState<AnalysisState>("idle");
@@ -67,7 +67,7 @@ export function useAnalysis(): UseAnalysisReturn {
     } else if (Date.now() - lastProgressRef.current.time > STALL_TIMEOUT_MS) {
       setState("error");
       setError(
-        "Analysis timed out — no progress for 8 minutes. The site may be unreachable or too complex for Google PSI.",
+        "Analysis timed out — no progress detected. The site may be unreachable or too complex for analysis.",
       );
       setPolling(false);
       return;
