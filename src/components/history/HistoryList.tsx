@@ -1,8 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import type { HistoryEntry, VitalRating } from "@/lib/types";
 import { track } from "@/lib/analytics";
 import RatingPill from "../report/RatingPill";
+
+const PAGE_SIZE = 5;
 
 interface HistoryListProps {
   entries: HistoryEntry[];
@@ -30,6 +33,8 @@ function RatingDot({ rating }: { rating: VitalRating | null }) {
 }
 
 export default function HistoryList({ entries, onSelect }: HistoryListProps) {
+  const [page, setPage] = useState(0);
+
   if (entries.length === 0) {
     return (
       <div className="text-center py-4">
@@ -38,7 +43,8 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
     );
   }
 
-  const visible = entries.slice(0, 10);
+  const totalPages = Math.ceil(entries.length / PAGE_SIZE);
+  const visible = entries.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -48,6 +54,11 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
           Recent Analyses
         </h3>
         <div className="flex-1 h-[1px] bg-vecton-dark/10" />
+        {totalPages > 1 && (
+          <span className="text-[11px] text-vecton-dark/30">
+            {page + 1}/{totalPages}
+          </span>
+        )}
       </div>
       <div className="space-y-2">
         {visible.map((entry) => (
@@ -108,6 +119,29 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
           </button>
         ))}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3 mt-4">
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
+            className="text-xs px-3 py-1.5 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-ring"
+          >
+            Prev
+          </button>
+          <span className="text-xs text-vecton-dark/40 font-mono">
+            {page + 1} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page >= totalPages - 1}
+            className="text-xs px-3 py-1.5 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors focus-ring"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
