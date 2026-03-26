@@ -16,6 +16,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [extractionModel, setExtractionModel] = useState("");
   const [intelligenceModel, setIntelligenceModel] = useState("");
   const [showCosts, setShowCosts] = useState(false);
+  const [costPage, setCostPage] = useState(0);
 
   // Prompt editor state
   const [showPrompts, setShowPrompts] = useState(false);
@@ -408,48 +409,55 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                       </p>
                     </div>
 
-                    {/* Per-scan cost breakdown */}
+                    {/* Per-scan cost breakdown with pagination */}
                     {settings.costs.analyses.length > 0 ? (
-                      <div className="space-y-1.5 max-h-72 overflow-y-auto">
-                        {(() => {
-                          // Group by analysis_id to show per-scan totals
-                          const scans = new Map<
-                            string,
-                            {
-                              url: string;
-                              calls: number;
-                              cost: number;
-                              tokens: number;
-                              timestamp: string;
-                            }
-                          >();
-                          settings.costs.analyses.forEach((entry) => {
-                            const existing = scans.get(entry.analysis_id);
-                            if (existing) {
-                              existing.calls++;
-                              existing.cost += entry.cost_total;
-                              existing.tokens +=
-                                entry.input_tokens + entry.output_tokens;
-                            } else {
-                              scans.set(entry.analysis_id, {
-                                url: entry.url || "unknown",
-                                calls: 1,
-                                cost: entry.cost_total,
-                                tokens:
-                                  entry.input_tokens + entry.output_tokens,
-                                timestamp: entry.timestamp,
-                              });
-                            }
-                          });
+                      (() => {
+                        const COST_PAGE_SIZE = 5;
+                        // Group by analysis_id
+                        const scans = new Map<
+                          string,
+                          {
+                            url: string;
+                            calls: number;
+                            cost: number;
+                            tokens: number;
+                            timestamp: string;
+                          }
+                        >();
+                        settings.costs.analyses.forEach((entry) => {
+                          const existing = scans.get(entry.analysis_id);
+                          if (existing) {
+                            existing.calls++;
+                            existing.cost += entry.cost_total;
+                            existing.tokens +=
+                              entry.input_tokens + entry.output_tokens;
+                          } else {
+                            scans.set(entry.analysis_id, {
+                              url: entry.url || "unknown",
+                              calls: 1,
+                              cost: entry.cost_total,
+                              tokens: entry.input_tokens + entry.output_tokens,
+                              timestamp: entry.timestamp,
+                            });
+                          }
+                        });
 
-                          return Array.from(scans.values())
-                            .sort(
-                              (a, b) =>
-                                new Date(b.timestamp).getTime() -
-                                new Date(a.timestamp).getTime(),
-                            )
-                            .slice(0, 15)
-                            .map((scan, i) => (
+                        const sorted = Array.from(scans.values()).sort(
+                          (a, b) =>
+                            new Date(b.timestamp).getTime() -
+                            new Date(a.timestamp).getTime(),
+                        );
+                        const costTotalPages = Math.ceil(
+                          sorted.length / COST_PAGE_SIZE,
+                        );
+                        const costVisible = sorted.slice(
+                          costPage * COST_PAGE_SIZE,
+                          (costPage + 1) * COST_PAGE_SIZE,
+                        );
+
+                        return (
+                          <div className="space-y-1.5">
+                            {costVisible.map((scan, i) => (
                               <div
                                 key={i}
                                 className="p-2 rounded bg-white/30 border border-vecton-dark/5"
@@ -486,9 +494,38 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                                   </span>
                                 </div>
                               </div>
-                            ));
-                        })()}
-                      </div>
+                            ))}
+
+                            {costTotalPages > 1 && (
+                              <div className="flex items-center justify-center gap-3 pt-2">
+                                <button
+                                  onClick={() =>
+                                    setCostPage((p) => Math.max(0, p - 1))
+                                  }
+                                  disabled={costPage === 0}
+                                  className="text-[11px] px-2 py-1 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-[11px] text-vecton-dark/35 font-mono">
+                                  {costPage + 1}/{costTotalPages}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    setCostPage((p) =>
+                                      Math.min(costTotalPages - 1, p + 1),
+                                    )
+                                  }
+                                  disabled={costPage >= costTotalPages - 1}
+                                  className="text-[11px] px-2 py-1 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <p className="text-xs text-vecton-dark/30">
                         No cost data yet
