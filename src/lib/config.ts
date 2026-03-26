@@ -51,7 +51,7 @@ export const AVAILABLE_MODELS = Object.keys(MODEL_PRICING).filter(
 );
 
 export const DEFAULT_EXTRACTION_MODEL = "anthropic/claude-haiku-4.5";
-export const DEFAULT_INTELLIGENCE_MODEL = "anthropic/claude-opus-4.6";
+export const DEFAULT_INTELLIGENCE_MODEL = "anthropic/claude-sonnet-4.6";
 
 // API key resolution: read from process.env only
 export function getGoogleApiKey(): string | undefined {
