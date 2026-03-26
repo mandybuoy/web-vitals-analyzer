@@ -81,6 +81,11 @@ function getDb(): Database.Database {
   seedSetting.run("extraction_model", DEFAULT_EXTRACTION_MODEL);
   seedSetting.run("intelligence_model", DEFAULT_INTELLIGENCE_MODEL);
 
+  // Migrate: switch Opus to Sonnet for cost reduction
+  db.prepare(
+    "UPDATE settings SET value = ? WHERE key = 'intelligence_model' AND value = 'anthropic/claude-opus-4.6'",
+  ).run(DEFAULT_INTELLIGENCE_MODEL);
+
   globalForDb.__vitalscanDb = db;
   return db;
 }

@@ -402,30 +402,92 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                       <p className="text-lg text-vecton-dark font-mono">
                         ${settings.costs.total_spend.toFixed(4)}
                       </p>
+                      <p className="text-[11px] text-vecton-dark/40 mt-1">
+                        {settings.costs.analyses.length} LLM calls across all
+                        scans
+                      </p>
                     </div>
 
+                    {/* Per-scan cost breakdown */}
                     {settings.costs.analyses.length > 0 ? (
-                      <div className="space-y-1 max-h-60 overflow-y-auto">
-                        {settings.costs.analyses
-                          .slice(0, 20)
-                          .map((entry, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between p-2 rounded bg-white/30 text-xs"
-                            >
-                              <div>
-                                <span className="text-vecton-dark/50 font-mono">
-                                  {entry.model.split("/").pop()}
-                                </span>
-                                <span className="text-vecton-dark/50 ml-2">
-                                  {entry.tier}
-                                </span>
+                      <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                        {(() => {
+                          // Group by analysis_id to show per-scan totals
+                          const scans = new Map<
+                            string,
+                            {
+                              url: string;
+                              calls: number;
+                              cost: number;
+                              tokens: number;
+                              timestamp: string;
+                            }
+                          >();
+                          settings.costs.analyses.forEach((entry) => {
+                            const existing = scans.get(entry.analysis_id);
+                            if (existing) {
+                              existing.calls++;
+                              existing.cost += entry.cost_total;
+                              existing.tokens +=
+                                entry.input_tokens + entry.output_tokens;
+                            } else {
+                              scans.set(entry.analysis_id, {
+                                url: entry.url || "unknown",
+                                calls: 1,
+                                cost: entry.cost_total,
+                                tokens:
+                                  entry.input_tokens + entry.output_tokens,
+                                timestamp: entry.timestamp,
+                              });
+                            }
+                          });
+
+                          return Array.from(scans.values())
+                            .sort(
+                              (a, b) =>
+                                new Date(b.timestamp).getTime() -
+                                new Date(a.timestamp).getTime(),
+                            )
+                            .slice(0, 15)
+                            .map((scan, i) => (
+                              <div
+                                key={i}
+                                className="p-2 rounded bg-white/30 border border-vecton-dark/5"
+                              >
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs text-vecton-dark/60 font-mono truncate max-w-[65%]">
+                                    {
+                                      scan.url
+                                        .replace(/^https?:\/\//, "")
+                                        .split("/")[0]
+                                    }
+                                  </span>
+                                  <span
+                                    className={`text-xs font-mono font-medium ${
+                                      scan.cost > 2
+                                        ? "text-vital-poor"
+                                        : scan.cost > 1
+                                          ? "text-vital-needs"
+                                          : "text-vital-good"
+                                    }`}
+                                  >
+                                    ${scan.cost.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] text-vecton-dark/35">
+                                  <span>{scan.calls} calls</span>
+                                  <span>
+                                    {Math.round(scan.tokens / 1000)}K tokens
+                                  </span>
+                                  <span className="ml-auto">
+                                    {new Date(
+                                      scan.timestamp,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="text-vecton-dark/60 font-mono">
-                                ${entry.cost_total.toFixed(4)}
-                              </span>
-                            </div>
-                          ))}
+                            ));
+                        })()}
                       </div>
                     ) : (
                       <p className="text-xs text-vecton-dark/30">
