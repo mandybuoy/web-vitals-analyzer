@@ -110,7 +110,7 @@ function stripUrlParams(url: string): string {
 
 /** Sort key varies by audit type */
 const SORT_KEY_BY_AUDIT: Record<string, keyof ResourceItem> = {
-  "bootup-time": "totalBytes",
+  "bootup-time": "wastedMs",
   "mainthread-work-breakdown": "totalBytes",
   "third-party-summary": "totalBytes",
   "long-tasks": "wastedMs",
@@ -139,6 +139,9 @@ function truncateItems(
       if (item.wastedBytes != null)
         ri.wastedBytes = Math.round(item.wastedBytes);
       if (item.wastedMs != null) ri.wastedMs = Math.round(item.wastedMs);
+      // bootup-time uses 'total' for CPU time (not wastedMs)
+      if (item.total != null && ri.wastedMs == null)
+        ri.wastedMs = Math.round(item.total);
       if (item.label) ri.label = item.label;
       // Also capture groupLabel (used by mainthread-work-breakdown)
       if (item.groupLabel) ri.label = item.groupLabel;

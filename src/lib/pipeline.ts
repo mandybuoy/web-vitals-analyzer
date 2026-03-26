@@ -717,12 +717,19 @@ export async function runPipeline(
     const extractScriptSummary = (psiResult: PSIResult) => {
       const bootupItems =
         psiResult.diagnostics.find((d) => d.id === "bootup-time")?.items ?? [];
+
+      // Build URL→transferSize lookup from network requests for script sizes
+      const sizeByUrl = new Map<string, number>();
+      psiResult.networkRequests?.forEach((req) => {
+        sizeByUrl.set(req.url, req.transferSize);
+      });
+
       return bootupItems
         .filter((item) => item.url)
         .slice(0, 10)
         .map((item) => ({
           url: item.url!,
-          totalBytes: item.totalBytes ?? 0,
+          totalBytes: item.totalBytes ?? sizeByUrl.get(item.url!) ?? 0,
           mainThreadTime: item.wastedMs,
         }));
     };
