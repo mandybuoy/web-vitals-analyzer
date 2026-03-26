@@ -33,26 +33,26 @@ export default function ReportView({ report }: ReportViewProps) {
 
   return (
     <div
-      className="mt-10 animate-fade-up"
+      className="mt-12 animate-fade-up"
       style={{ animationFillMode: "forwards" }}
     >
       {/* URL & timestamp */}
-      <div className="mb-6">
+      <div className="mb-8">
         <p className="text-xs text-vecton-dark/60 font-mono truncate">
           {report.url}
         </p>
-        <p className="text-xs text-vecton-dark/50 mt-1">
-          Analyzed {new Date(report.timestamp).toLocaleString()}
+        <p className="text-[11px] text-vecton-dark/40 mt-1">
+          {new Date(report.timestamp).toLocaleString()}
         </p>
       </div>
 
       {/* Warnings */}
       {report.warnings.length > 0 && (
-        <div className="mb-4 space-y-1">
+        <div className="mb-6 space-y-1.5">
           {report.warnings.map((w, i) => (
             <div
               key={i}
-              className="text-xs text-[#ffa400] bg-[#ffa400]/8 border border-[#ffa400]/15 px-3 py-2 rounded"
+              className="text-xs text-vital-needs bg-vital-needs/8 border border-vital-needs/15 px-3 py-2 rounded"
             >
               {w}
             </div>
@@ -60,8 +60,8 @@ export default function ReportView({ report }: ReportViewProps) {
         </div>
       )}
 
-      {/* Device toggle */}
-      <div className="flex gap-2 mb-8">
+      {/* Device toggle — sits above summary, tight to content */}
+      <div className="flex gap-2 mb-5">
         {(["mobile", "desktop"] as const).map((tab) => {
           const available = tab === "mobile" ? hasMobile : hasDesktop;
           const isActive = activeDevice === tab;
@@ -79,7 +79,7 @@ export default function ReportView({ report }: ReportViewProps) {
                 }
               }}
               disabled={!available}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm transition-all focus-ring press-scale
                 ${
                   isActive
                     ? "bg-vecton-orange/10 text-vecton-orange border border-vecton-orange/20"
@@ -120,10 +120,10 @@ export default function ReportView({ report }: ReportViewProps) {
                   className={`ml-1 text-[11px] px-1.5 py-0.5 rounded
                     ${
                       score >= 90
-                        ? "bg-[#0cce6b]/10 text-[#0cce6b]"
+                        ? "bg-vital-good/10 text-vital-good"
                         : score >= 50
-                          ? "bg-[#ffa400]/10 text-[#ffa400]"
-                          : "bg-[#ff4e42]/10 text-[#ff4e42]"
+                          ? "bg-vital-needs/10 text-vital-needs"
+                          : "bg-vital-poor/10 text-vital-poor"
                     }`}
                 >
                   {Math.round(score)}
@@ -144,9 +144,10 @@ export default function ReportView({ report }: ReportViewProps) {
             device={device}
             sourceStats={report.source_stats}
             techStack={report.tech_stack}
+            networkStack={report.network_stack}
           />
 
-          <div className="mt-8">
+          <div className="mt-10">
             <ReportTabBar
               active={activeTab}
               onChange={(tab) => {
@@ -154,12 +155,16 @@ export default function ReportView({ report }: ReportViewProps) {
                 setActiveTab(tab);
               }}
             />
-            <div className="p-5 sm:p-6 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px]">
+            <div
+              key={activeTab}
+              className="p-5 sm:p-6 bg-white/20 border border-vecton-dark/10 border-t-0 rounded-b-lg min-h-[200px] animate-tab-enter"
+            >
               {activeTab === "inp" && (
                 <MetricTab
                   issues={device.inp_analysis.issues}
                   metricLabel="INP"
                   scriptSummary={device.inp_script_summary}
+                  jsAnalysis={device.js_analysis}
                 />
               )}
               {activeTab === "fcp" && (
@@ -193,8 +198,95 @@ export default function ReportView({ report }: ReportViewProps) {
           </div>
         </>
       ) : (
-        <div className="py-8 text-center text-sm text-vecton-dark/40">
-          No data available for {activeDevice}
+        <div className="space-y-4">
+          {/* Show source stats and network stack even without device-level analysis */}
+          {(report.source_stats.dom_nodes > 0 ||
+            report.tech_stack?.length ||
+            report.network_stack) && (
+            <div className="space-y-4">
+              {/* Secondary stats */}
+              {report.source_stats.dom_nodes > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: "DOM Nodes",
+                      value: report.source_stats.dom_nodes.toLocaleString(),
+                    },
+                    {
+                      label: "HTML Size",
+                      value: `${report.source_stats.html_size_kb} KB`,
+                    },
+                    {
+                      label: "Scripts",
+                      value: `${report.source_stats.total_scripts} (${report.source_stats.render_blocking_scripts} blocking)`,
+                    },
+                    {
+                      label: "3P Domains",
+                      value: String(report.source_stats.third_party_domains),
+                    },
+                  ].map((s) => (
+                    <div
+                      key={s.label}
+                      className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
+                    >
+                      <p className="text-xs text-vecton-dark/50 uppercase tracking-wider mb-1">
+                        {s.label}
+                      </p>
+                      <p className="text-sm text-vecton-dark/70 font-mono">
+                        {s.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Tech stack pills */}
+              {report.tech_stack && report.tech_stack.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+                    Stack
+                  </span>
+                  {report.tech_stack.map((t) => (
+                    <span
+                      key={t}
+                      className="text-xs px-2 py-0.5 rounded-full bg-vecton-orange/10 text-vecton-orange/80 border border-vecton-orange/15"
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Network stack */}
+              {report.network_stack && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-vecton-dark/40 uppercase tracking-wider mr-1">
+                    Network
+                  </span>
+                  {report.network_stack.cdn && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600/80 border border-blue-500/15">
+                      CDN: {report.network_stack.cdn}
+                    </span>
+                  )}
+                  {report.network_stack.server && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600/80 border border-purple-500/15">
+                      Server: {report.network_stack.server}
+                    </span>
+                  )}
+                  {report.network_stack.compression && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600/80 border border-green-500/15">
+                      {report.network_stack.compression}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="py-8 text-center text-sm text-vecton-dark/40">
+            Detailed metric analysis unavailable — PSI data could not be
+            retrieved for this site
+          </div>
         </div>
       )}
     </div>

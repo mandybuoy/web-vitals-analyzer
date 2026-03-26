@@ -143,7 +143,7 @@ function SubTaskRow({
             : status === "done"
               ? "text-vecton-dark/60"
               : status === "failed"
-                ? "text-[#ff4e42]/70"
+                ? "text-vital-poor/70"
                 : "text-vecton-dark/40"
         }`}
       >
@@ -280,21 +280,27 @@ export default function ProgressBar({ status, onCancel }: ProgressBarProps) {
         )}
 
         {/* Global progress bar */}
-        <div className="w-full bg-vecton-dark/10 rounded-full h-1.5 mb-3">
+        <div className="w-full bg-vecton-dark/10 rounded-full h-1.5 mb-3 overflow-hidden">
           <div
-            className="bg-vecton-orange h-1.5 rounded-full transition-all duration-500"
+            className="bg-vecton-orange h-1.5 rounded-full transition-all duration-700 ease-out relative"
             style={{ width: `${globalProgress}%` }}
-          />
+          >
+            {/* Shimmer effect on active progress */}
+            <div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_1.8s_ease-in-out_infinite]"
+              style={{ backgroundSize: "200% 100%" }}
+            />
+          </div>
         </div>
 
         {/* Detail / retry info + Cancel button */}
         <div className="flex justify-between items-center">
-          <p className="text-xs text-vecton-orange/60 font-mono animate-pulse truncate mr-4">
+          <p className="text-xs text-vecton-orange/60 font-mono animate-progress-pulse truncate mr-4">
             {status.collection_progress?.psi_detail || status.detail || ""}
           </p>
           <button
             onClick={onCancel}
-            className="text-xs text-[#ff4e42]/60 hover:text-[#ff4e42] transition-colors flex-shrink-0"
+            className="text-xs text-vital-poor/60 hover:text-vital-poor transition-colors flex-shrink-0 focus-ring press-scale"
           >
             Cancel
           </button>

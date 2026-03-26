@@ -26,18 +26,18 @@ interface ReportTabBarProps {
 
 export default function ReportTabBar({ active, onChange }: ReportTabBarProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto pb-1 -mb-px">
+    <div className="flex gap-0.5 overflow-x-auto pb-1 -mb-px">
       {TABS.map((tab) => {
         const isActive = active === tab.id;
         return (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`px-4 py-2.5 text-xs uppercase tracking-wider rounded-t-lg border border-b-0 transition-colors whitespace-nowrap
+            className={`px-3.5 sm:px-4 py-2.5 text-xs uppercase tracking-wider rounded-t-lg border border-b-0 transition-colors whitespace-nowrap focus-ring
               ${
                 isActive
                   ? "bg-white/50 text-vecton-dark border-vecton-dark/10 font-medium"
-                  : "bg-transparent text-vecton-dark/40 border-transparent hover:text-vecton-dark/60"
+                  : "bg-transparent text-vecton-dark/40 border-transparent hover:text-vecton-dark/60 hover:bg-vecton-dark/3"
               }
               ${tab.id === "inp" && !isActive ? "text-vecton-purple/60" : ""}
             `}

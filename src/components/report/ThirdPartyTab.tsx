@@ -26,10 +26,10 @@ const SEVERITY_ORDER: Record<Severity, number> = {
 };
 
 const ACTION_COLORS: Record<string, string> = {
-  remove: "bg-[#ff4e42]/10 text-[#ff4e42]",
-  defer: "bg-[#ffa400]/10 text-[#ffa400]",
+  remove: "bg-vital-poor/10 text-vital-poor",
+  defer: "bg-vital-needs/10 text-vital-needs",
   lazy_load: "bg-blue-500/10 text-blue-600",
-  keep: "bg-[#0cce6b]/10 text-[#0cce6b]",
+  keep: "bg-vital-good/10 text-vital-good",
 };
 
 export default function ThirdPartyTab({ entries }: ThirdPartyTabProps) {

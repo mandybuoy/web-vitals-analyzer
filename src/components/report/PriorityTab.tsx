@@ -10,8 +10,8 @@ interface PriorityTabProps {
 }
 
 const EVIDENCE_STYLES: Record<string, string> = {
-  measured: "bg-[#0cce6b]/10 text-[#0cce6b]",
-  inferred: "bg-[#ffa400]/10 text-[#ffa400]",
+  measured: "bg-vital-good/10 text-vital-good",
+  inferred: "bg-vital-needs/10 text-vital-needs",
   best_practice: "bg-vecton-dark/5 text-vecton-dark/50",
 };
 

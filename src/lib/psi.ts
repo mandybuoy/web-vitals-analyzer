@@ -21,6 +21,7 @@ import type {
   OpportunityItem,
   ResourceItem,
   NetworkRequestItem,
+  ScriptTreemapModule,
 } from "./types";
 
 // Thresholds for Core Web Vitals
@@ -87,9 +88,9 @@ const RETRYABLE_PATTERNS = [
   /FAILED_DOCUMENT_REQUEST/,
   /ERRORED_DOCUMENT_REQUEST/,
 ];
-const PSI_MAX_RETRIES = 2;
+const PSI_MAX_RETRIES = 1; // 2 total attempts per device (down from 3)
 const PSI_BASE_BACKOFF_MS = 3_000;
-const PSI_TIMEOUT_MS = 180_000; // 3 minutes — heavy sites need time
+const PSI_TIMEOUT_MS = 90_000; // 90s — Google typically responds within 30-60s
 
 // ----- Items[] extraction helpers -----
 
@@ -187,8 +188,34 @@ function extractNetworkRequests(audits: any): NetworkRequestItem[] | undefined {
   return mapped.slice(0, MAX_NETWORK_REQUESTS);
 }
 
+/** Extract script treemap data (module-level JS breakdown) */
+function extractScriptTreemap(
+  audits: Record<string, any>,
+): ScriptTreemapModule[] | undefined {
+  const audit = audits["script-treemap-data"];
+  const nodes = audit?.details?.nodes;
+  if (!Array.isArray(nodes) || nodes.length === 0) return undefined;
+
+  const modules: ScriptTreemapModule[] = nodes
+    .filter((node: any) => node.name && typeof node.resourceBytes === "number")
+    .map((node: any) => ({
+      name: node.name,
+      resourceBytes: Math.round(node.resourceBytes),
+      unusedBytes:
+        node.unusedBytes != null ? Math.round(node.unusedBytes) : undefined,
+    }))
+    .sort(
+      (a: ScriptTreemapModule, b: ScriptTreemapModule) =>
+        b.resourceBytes - a.resourceBytes,
+    )
+    .slice(0, 15);
+
+  return modules.length > 0 ? modules : undefined;
+}
+
 export interface PSIFetchOptions {
   onRetry?: (attempt: number, maxRetries: number, reason: string) => void;
+  signal?: AbortSignal; // Pipeline-level abort signal
 }
 
 export async function fetchPSI(
@@ -207,7 +234,19 @@ export async function fetchPSI(
 
   let lastError: Error | null = null;
 
+  // Combine pipeline abort signal with per-request timeout
+  const buildSignal = () => {
+    const signals: AbortSignal[] = [AbortSignal.timeout(PSI_TIMEOUT_MS)];
+    if (options?.signal) signals.push(options.signal);
+    return AbortSignal.any(signals);
+  };
+
   for (let attempt = 0; attempt <= PSI_MAX_RETRIES; attempt++) {
+    // Check if pipeline was aborted before retrying
+    if (options?.signal?.aborted) {
+      throw new Error("Pipeline aborted");
+    }
+
     if (attempt > 0) {
       const backoffMs = PSI_BASE_BACKOFF_MS * Math.pow(2, attempt - 1);
       const reason = lastError?.message ?? "unknown error";
@@ -215,16 +254,35 @@ export async function fetchPSI(
         `[psi] Retry ${attempt}/${PSI_MAX_RETRIES} for ${strategy} after ${backoffMs / 1000}s...`,
       );
       options?.onRetry?.(attempt, PSI_MAX_RETRIES, reason);
-      await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      // Interruptible backoff delay
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(resolve, backoffMs);
+        if (options?.signal) {
+          options.signal.addEventListener(
+            "abort",
+            () => {
+              clearTimeout(timer);
+              reject(new Error("Pipeline aborted during backoff"));
+            },
+            { once: true },
+          );
+        }
+      });
     }
 
     let response: Response;
     try {
       response = await fetch(apiUrl.toString(), {
-        signal: AbortSignal.timeout(PSI_TIMEOUT_MS),
+        signal: buildSignal(),
       });
     } catch (err) {
-      // Retry on timeout or network errors
+      // Retry on timeout or network errors (but not pipeline abort)
+      if (
+        options?.signal?.aborted ||
+        (err instanceof Error && err.message.includes("Pipeline aborted"))
+      ) {
+        throw err;
+      }
       if (attempt < PSI_MAX_RETRIES) {
         lastError = err instanceof Error ? err : new Error(String(err));
         console.warn(
@@ -439,6 +497,7 @@ export async function fetchPSI(
       });
 
     const networkRequests = extractNetworkRequests(audits);
+    const scriptTreemap = extractScriptTreemap(audits);
 
     return {
       strategy,
@@ -450,6 +509,7 @@ export async function fetchPSI(
       diagnostics,
       opportunities,
       networkRequests,
+      scriptTreemap,
     };
   }
 

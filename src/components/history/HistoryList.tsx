@@ -60,7 +60,7 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
               });
               onSelect(entry.analysis_id);
             }}
-            className="w-full text-left p-3 rounded-lg bg-white/30 border border-vecton-dark/5 hover:bg-white/50 hover:border-vecton-dark/10 transition-colors"
+            className="w-full text-left p-3 rounded-lg bg-white/30 border border-vecton-dark/5 hover:bg-white/50 hover:border-vecton-dark/10 transition-colors focus-ring press-scale"
           >
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-xs text-vecton-dark/60 font-mono truncate max-w-[70%]">
@@ -76,10 +76,10 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
                   className={`text-xs px-2 py-0.5 rounded font-mono
                     ${
                       entry.mobile_score >= 90
-                        ? "bg-[#0cce6b]/10 text-[#0cce6b]"
+                        ? "bg-vital-good/10 text-vital-good"
                         : entry.mobile_score >= 50
-                          ? "bg-[#ffa400]/10 text-[#ffa400]"
-                          : "bg-[#ff4e42]/10 text-[#ff4e42]"
+                          ? "bg-vital-needs/10 text-vital-needs"
+                          : "bg-vital-poor/10 text-vital-poor"
                     }`}
                 >
                   M: {Math.round(entry.mobile_score)}
@@ -90,10 +90,10 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
                   className={`text-xs px-2 py-0.5 rounded font-mono
                     ${
                       entry.desktop_score >= 90
-                        ? "bg-[#0cce6b]/10 text-[#0cce6b]"
+                        ? "bg-vital-good/10 text-vital-good"
                         : entry.desktop_score >= 50
-                          ? "bg-[#ffa400]/10 text-[#ffa400]"
-                          : "bg-[#ff4e42]/10 text-[#ff4e42]"
+                          ? "bg-vital-needs/10 text-vital-needs"
+                          : "bg-vital-poor/10 text-vital-poor"
                     }`}
                 >
                   D: {Math.round(entry.desktop_score)}

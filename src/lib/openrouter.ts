@@ -94,8 +94,8 @@ export async function callOpenRouter<T>(options: {
 
   const anthropicModel = toAnthropicModelId(model);
 
-  // Per-tier request timeout: 2 min for extraction, 5 min for intelligence
-  const timeoutMs = tier === "extraction" ? 120_000 : 300_000;
+  // Per-tier request timeout: 2 min for extraction, 4 min for intelligence
+  const timeoutMs = tier === "extraction" ? 120_000 : 240_000;
 
   // Token budget guard: warn if estimated input tokens are very high
   const estimatedInputChars = systemPrompt.length + userPrompt.length;
@@ -130,6 +130,11 @@ export async function callOpenRouter<T>(options: {
 
     let response: Anthropic.Message;
     try {
+      // Combine: per-request hard timeout + pipeline abort signal
+      const signals: AbortSignal[] = [AbortSignal.timeout(timeoutMs)];
+      if (signal) signals.push(signal);
+      const combinedSignal = AbortSignal.any(signals);
+
       response = await client.messages.create(
         {
           model: anthropicModel,
@@ -139,12 +144,21 @@ export async function callOpenRouter<T>(options: {
         },
         {
           timeout: timeoutMs,
-          signal: signal,
+          signal: combinedSignal,
         },
       );
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") {
-        throw new Error("Analysis cancelled");
+      if (
+        err instanceof Error &&
+        (err.name === "AbortError" || err.name === "TimeoutError")
+      ) {
+        // Distinguish pipeline abort from per-request timeout
+        if (signal?.aborted) {
+          throw new Error("Analysis cancelled");
+        }
+        throw new Error(
+          `LLM request timed out after ${timeoutMs / 1000}s — the site may have too much data for analysis`,
+        );
       }
       if (
         err instanceof Anthropic.APIConnectionTimeoutError ||

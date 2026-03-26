@@ -7,6 +7,8 @@ interface ScoreGaugeProps {
   animate?: boolean;
 }
 
+// Raw hex needed for inline SVG stroke/style attributes (Tailwind classes don't work here)
+// Values match vital-good/vital-needs/vital-poor tokens in tailwind.config.js
 function getColor(score: number): string {
   if (score >= 90) return "#0cce6b";
   if (score >= 50) return "#ffa400";

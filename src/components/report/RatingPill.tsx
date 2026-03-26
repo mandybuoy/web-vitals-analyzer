@@ -4,13 +4,13 @@ import type { VitalRating } from "@/lib/types";
 
 const COLORS: Record<VitalRating, { bg: string; text: string; label: string }> =
   {
-    good: { bg: "bg-[#0cce6b]/10", text: "text-[#0cce6b]", label: "Good" },
+    good: { bg: "bg-vital-good/10", text: "text-vital-good", label: "Good" },
     needs_improvement: {
-      bg: "bg-[#ffa400]/10",
-      text: "text-[#ffa400]",
+      bg: "bg-vital-needs/10",
+      text: "text-vital-needs",
       label: "Needs Work",
     },
-    poor: { bg: "bg-[#ff4e42]/10", text: "text-[#ff4e42]", label: "Poor" },
+    poor: { bg: "bg-vital-poor/10", text: "text-vital-poor", label: "Poor" },
   };
 
 export default function RatingPill({ rating }: { rating: VitalRating }) {

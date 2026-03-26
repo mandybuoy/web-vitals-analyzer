@@ -13,6 +13,7 @@ export interface FetchedHTML {
   head: string;
   sizeBytes: number;
   fetchTimeMs: number;
+  responseHeaders: Record<string, string>;
 }
 
 async function attemptFetch(
@@ -41,6 +42,12 @@ async function attemptFetch(
       },
       redirect: "follow",
       signal: controller.signal,
+    });
+
+    // Capture response headers for network stack detection
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      responseHeaders[key] = value;
     });
 
     if (response.status === 403 || response.status === 503) {
@@ -94,6 +101,7 @@ async function attemptFetch(
       head,
       sizeBytes: totalBytes,
       fetchTimeMs: Date.now() - startTime,
+      responseHeaders,
     };
   } finally {
     clearTimeout(timeout);

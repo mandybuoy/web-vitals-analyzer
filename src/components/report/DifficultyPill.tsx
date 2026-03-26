@@ -3,9 +3,9 @@
 import type { Difficulty } from "@/lib/types";
 
 const COLORS: Record<Difficulty, { bg: string; text: string }> = {
-  easy: { bg: "bg-[#0cce6b]/10", text: "text-[#0cce6b]" },
-  moderate: { bg: "bg-[#ffa400]/10", text: "text-[#ffa400]" },
-  hard: { bg: "bg-[#ff4e42]/10", text: "text-[#ff4e42]" },
+  easy: { bg: "bg-vital-good/10", text: "text-vital-good" },
+  moderate: { bg: "bg-vital-needs/10", text: "text-vital-needs" },
+  hard: { bg: "bg-vital-poor/10", text: "text-vital-poor" },
 };
 
 export default function DifficultyPill({

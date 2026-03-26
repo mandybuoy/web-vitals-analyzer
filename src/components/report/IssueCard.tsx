@@ -13,8 +13,8 @@ interface IssueCardProps {
 }
 
 const EVIDENCE_STYLES: Record<string, string> = {
-  measured: "bg-[#0cce6b]/10 text-[#0cce6b]",
-  inferred: "bg-[#ffa400]/10 text-[#ffa400]",
+  measured: "bg-vital-good/10 text-vital-good",
+  inferred: "bg-vital-needs/10 text-vital-needs",
   best_practice: "bg-vecton-dark/5 text-vecton-dark/50",
 };
 
@@ -47,10 +47,10 @@ export default function IssueCard({
           }
           setOpen(!open);
         }}
-        className="w-full flex items-center gap-3 p-3 text-left hover:bg-vecton-dark/3 transition-colors"
+        className="w-full flex items-center gap-3 p-3 text-left hover:bg-vecton-dark/3 transition-colors focus-ring"
       >
         <svg
-          className={`w-3 h-3 text-vecton-dark/40 flex-shrink-0 transition-transform ${open ? "rotate-90" : ""}`}
+          className={`w-3 h-3 text-vecton-dark/40 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"

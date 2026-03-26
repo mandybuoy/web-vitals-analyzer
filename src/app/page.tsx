@@ -137,10 +137,10 @@ export default function Home() {
   const isError = analysis.state === "error";
 
   return (
-    <div className="min-h-screen px-4 py-16 sm:px-6 lg:px-8">
+    <div className="min-h-screen px-4 py-12 sm:py-16 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-10 sm:mb-14">
           <div className="flex items-center justify-center gap-2 mb-6">
             <div className="w-5 h-[1px] bg-vecton-orange/60" />
             <span className="text-xs text-vecton-orange uppercase tracking-[0.2em]">
@@ -216,7 +216,7 @@ export default function Home() {
                   : handleAnalyze
               }
               disabled={!url.trim() && !isDone}
-              className="mr-2 px-5 py-2.5 bg-vecton-orange hover:bg-vecton-orange/90 disabled:bg-vecton-dark/8 disabled:text-vecton-dark/25 text-vecton-light text-sm rounded-md transition-all flex items-center gap-2"
+              className="mr-2 px-5 py-2.5 bg-vecton-orange hover:bg-vecton-orange/90 disabled:bg-vecton-dark/8 disabled:text-vecton-dark/25 text-vecton-light text-sm rounded-md transition-all flex items-center gap-2 press-scale focus-ring"
             >
               {isRunning ? (
                 <>
@@ -339,9 +339,9 @@ export default function Home() {
 
         {/* Error state */}
         {isError && (
-          <div className="max-w-2xl mx-auto p-4 rounded-lg bg-[#ff4e42]/8 border border-[#ff4e42]/15 flex items-start gap-3 animate-fade-up">
+          <div className="max-w-2xl mx-auto p-4 rounded-lg bg-vital-poor/8 border border-vital-poor/15 flex items-start gap-3 animate-fade-up">
             <svg
-              className="w-4 h-4 text-[#ff4e42] flex-shrink-0 mt-0.5"
+              className="w-4 h-4 text-vital-poor flex-shrink-0 mt-0.5"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -352,8 +352,10 @@ export default function Home() {
               <line x1="12" y1="17" x2="12.01" y2="17" />
             </svg>
             <div>
-              <p className="text-sm text-[#ff4e42]">Analysis Failed</p>
-              <p className="text-xs text-[#ff4e42]/60 mt-1">{analysis.error}</p>
+              <p className="text-sm text-vital-poor">Analysis Failed</p>
+              <p className="text-xs text-vital-poor/60 mt-1">
+                {analysis.error}
+              </p>
               <button
                 onClick={() => {
                   track("error_retry_clicked", {
@@ -362,7 +364,7 @@ export default function Home() {
                   });
                   handleAnalyze();
                 }}
-                className="text-xs text-vecton-orange underline mt-2"
+                className="text-xs text-vecton-orange hover:text-vecton-orange/80 underline underline-offset-2 mt-2 focus-ring transition-colors"
               >
                 Try again
               </button>
@@ -385,6 +387,26 @@ export default function Home() {
             entries={history.history}
             onSelect={handleHistorySelect}
           />
+        )}
+
+        {/* Idle empty state hint */}
+        {analysis.state === "idle" && history.history.length === 0 && (
+          <div
+            className="max-w-2xl mx-auto text-center py-12 animate-fade-up"
+            style={{
+              animationDelay: "200ms",
+              animationFillMode: "forwards",
+              opacity: 0,
+            }}
+          >
+            <div className="flex items-center justify-center gap-4 text-vecton-dark/25">
+              <div className="w-10 h-[1px] bg-vecton-dark/10" />
+              <p className="text-xs uppercase tracking-widest">
+                Enter a URL above to begin
+              </p>
+              <div className="w-10 h-[1px] bg-vecton-dark/10" />
+            </div>
+          </div>
         )}
 
         {/* Footer */}

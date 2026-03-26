@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { Issue, ScriptImpactItem } from "@/lib/types";
+import type { Issue, ScriptImpactItem, JSAnalysisResult } from "@/lib/types";
 import IssueCard from "./IssueCard";
 
 interface MetricTabProps {
   issues: Issue[];
   metricLabel: string;
   scriptSummary?: ScriptImpactItem[];
+  jsAnalysis?: JSAnalysisResult[];
 }
 
 function formatBytes(bytes: number): string {
@@ -33,7 +34,7 @@ function ScriptSummarySection({ scripts }: { scripts: ScriptImpactItem[] }) {
         onClick={() => setExpanded(!expanded)}
         className="flex items-center gap-3 mb-3 w-full text-left"
       >
-        <div className="w-4 h-[1px] bg-[#ff4e42]/40" />
+        <div className="w-4 h-[1px] bg-vital-poor/40" />
         <h4 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
           Scripts by Main Thread Time
         </h4>
@@ -73,7 +74,7 @@ function ScriptSummarySection({ scripts }: { scripts: ScriptImpactItem[] }) {
                   >
                     {truncateUrl(s.url)}
                   </td>
-                  <td className="py-1.5 px-2 text-right font-mono text-[#ff4e42]/80">
+                  <td className="py-1.5 px-2 text-right font-mono text-vital-poor/80">
                     {s.mainThreadTime != null
                       ? `${Math.round(s.mainThreadTime)}ms`
                       : "—"}
@@ -91,12 +92,121 @@ function ScriptSummarySection({ scripts }: { scripts: ScriptImpactItem[] }) {
   );
 }
 
+const PATTERN_COLORS: Record<string, string> = {
+  "forced-reflow": "bg-red-500/10 text-red-600/80 border-red-500/15",
+  "sync-xhr": "bg-red-500/10 text-red-600/80 border-red-500/15",
+  "document-write": "bg-red-500/10 text-red-600/80 border-red-500/15",
+  "eval-usage": "bg-red-500/10 text-red-600/80 border-red-500/15",
+  "unthrottled-scroll-resize":
+    "bg-amber-500/10 text-amber-600/80 border-amber-500/15",
+  "dom-querySelectorAll-loop":
+    "bg-amber-500/10 text-amber-600/80 border-amber-500/15",
+  "blocking-import": "bg-amber-500/10 text-amber-600/80 border-amber-500/15",
+  "large-json-parse":
+    "bg-yellow-500/10 text-yellow-600/80 border-yellow-500/15",
+  "timer-scheduling":
+    "bg-yellow-500/10 text-yellow-600/80 border-yellow-500/15",
+};
+
+function JSAnalysisSection({ results }: { results: JSAnalysisResult[] }) {
+  const [expanded, setExpanded] = useState(true);
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-3 mb-3 w-full text-left"
+      >
+        <div className="w-4 h-[1px] bg-purple-500/40" />
+        <h4 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
+          Script Code Analysis
+        </h4>
+        <div className="flex-1 h-[1px] bg-vecton-dark/10" />
+        <svg
+          className={`w-3 h-3 text-vecton-dark/30 transition-transform ${expanded ? "rotate-180" : ""}`}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {expanded && (
+        <div className="space-y-4">
+          {results.map((result, i) => (
+            <div
+              key={i}
+              className="p-3 rounded-lg bg-white/30 border border-vecton-dark/5"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span
+                  className="text-xs font-mono text-vecton-dark/70 truncate max-w-[70%]"
+                  title={result.url}
+                >
+                  {truncateUrl(result.url, 60)}
+                </span>
+                <div className="flex items-center gap-2 text-xs text-vecton-dark/50">
+                  <span>{formatBytes(result.sizeBytes)}</span>
+                  {result.mainThreadTime > 0 && (
+                    <span className="text-vital-poor/80">
+                      {Math.round(result.mainThreadTime)}ms
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {result.patterns.length > 0 ? (
+                <div className="space-y-2">
+                  {result.patterns.map((pattern, j) => (
+                    <div
+                      key={j}
+                      className="p-2 rounded bg-vecton-dark/3 border border-vecton-dark/5"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                            PATTERN_COLORS[pattern.type] ??
+                            "bg-gray-400/10 text-gray-500/80 border-gray-400/15"
+                          }`}
+                        >
+                          {pattern.type}
+                        </span>
+                      </div>
+                      <p className="text-xs text-vecton-dark/60 mb-1">
+                        {pattern.description}
+                      </p>
+                      <div className="bg-vecton-dark/5 rounded px-2 py-1 mb-1 overflow-x-auto">
+                        <code className="text-[10px] text-vecton-dark/60 whitespace-pre">
+                          {pattern.evidence}
+                        </code>
+                      </div>
+                      <p className="text-xs text-vecton-dark/50 italic">
+                        {pattern.suggestion}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-vecton-dark/40">
+                  No problematic patterns detected in this script
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3 };
 
 export default function MetricTab({
   issues,
   metricLabel,
   scriptSummary,
+  jsAnalysis,
 }: MetricTabProps) {
   const sorted = [...issues].sort(
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
@@ -124,6 +234,19 @@ export default function MetricTab({
       {scriptSummary && scriptSummary.length > 0 && (
         <ScriptSummarySection scripts={scriptSummary} />
       )}
+
+      {/* JS Code Analysis — detected patterns from downloaded scripts */}
+      {jsAnalysis && jsAnalysis.length > 0 && (
+        <JSAnalysisSection results={jsAnalysis} />
+      )}
+
+      {/* Visual separator between data sections and issue groups */}
+      {(scriptSummary?.length || jsAnalysis?.length) &&
+      (firstParty.length > 0 ||
+        thirdParty.length > 0 ||
+        observations.length > 0) ? (
+        <div className="border-t border-vecton-dark/8 -mx-1 mt-2 mb-2" />
+      ) : null}
 
       {firstParty.length > 0 && (
         <div>
