@@ -171,4 +171,6 @@ export function setComplete(analysisId: string): void {
   state.status.stage = 4;
   state.status.stage_name = "Generating";
   state.status.progress_pct = 100;
+  state.status.error = undefined; // Clear any abort/cancel error — report was saved
+  state.status.detail = undefined;
 }
