@@ -709,8 +709,9 @@ export async function runPipeline(
     const finalTechStack = Array.from(
       new Set([...userStack, ...autoDetectedStack]),
     );
+    // Use full network request list for duplicate detection (not truncated top-30)
     const duplicateResources = findDuplicateResources(
-      primaryPsi?.networkRequests,
+      primaryPsi?.allNetworkRequests ?? primaryPsi?.networkRequests,
     );
 
     // Extract INP script summary from bootup-time diagnostic
