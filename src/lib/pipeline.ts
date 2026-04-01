@@ -772,7 +772,7 @@ export async function runPipeline(
           analysisId,
           tier: "intelligence",
           signal: getAbortSignal(analysisId),
-          maxRetries: 0, // No retries — too expensive to double intelligence calls
+          maxRetries: 1, // One retry for schema validation failures
         }),
         jsAnalysisPromise,
       ]);
