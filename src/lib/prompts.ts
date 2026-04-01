@@ -436,11 +436,14 @@ export function buildTier2Prompt(
 ): { system: string; user: string } {
   const truncatedHead = head.slice(0, HTML_HEAD_LIMIT);
 
+  // Strip allNetworkRequests — only used for pre-computed duplicate detection, not LLM analysis
+  const { allNetworkRequests: _unused, ...psiForPrompt } = psiResult;
+
   const parts: string[] = [
     `## Device: ${device}`,
     "",
     "## PageSpeed Insights Data",
-    JSON.stringify(psiResult),
+    JSON.stringify(psiForPrompt),
   ];
 
   if (extractedSignals) {
