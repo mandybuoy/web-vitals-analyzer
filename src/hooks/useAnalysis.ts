@@ -23,7 +23,7 @@ export interface UseAnalysisReturn {
   reset: () => void;
 }
 
-const STALL_TIMEOUT_MS = 660_000; // 11 min — exceeds server pipeline hard timeout (10 min) so server always errors first
+const STALL_TIMEOUT_MS = 780_000; // 13 min — exceeds server pipeline hard timeout (12 min) so server always errors first
 
 export function useAnalysis(): UseAnalysisReturn {
   const [state, setState] = useState<AnalysisState>("idle");
