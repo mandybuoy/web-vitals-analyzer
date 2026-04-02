@@ -240,9 +240,10 @@ Respond with ONLY the JSON object, no explanations.`;
 // DuplicateResource interface is in types.ts
 export type { DuplicateResource } from "./types";
 
-/** Analytics beacon/collect URLs that fire multiple times by design — not true duplicates */
+/** Analytics measurement beacons that fire multiple times by design — not true duplicates.
+ * Precise: only excludes GA/UA measurement endpoints, not conversion/remarketing pixels. */
 const ANALYTICS_BEACON_PATTERN =
-  /\/collect\?|\/j\/collect|\/g\/collect|\/beacon|\/analytics\.js\/collect/;
+  /\/j\/collect|\/g\/collect|\/analytics\.js\/collect|google-analytics\.com\/collect|stats\.g\.doubleclick\.net/;
 
 /** Identify URLs loaded 2+ times from network requests */
 export function findDuplicateResources(
