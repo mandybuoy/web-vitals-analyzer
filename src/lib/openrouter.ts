@@ -94,8 +94,9 @@ export async function callOpenRouter<T>(options: {
 
   const anthropicModel = toAnthropicModelId(model);
 
-  // Per-tier request timeout: 2 min for extraction, 4 min for intelligence
-  const timeoutMs = tier === "extraction" ? 120_000 : 240_000;
+  // Per-tier request timeout: 2 min for extraction, 6 min for intelligence
+  // Sonnet 4.6 needs 4-5 min for large structured JSON on complex sites
+  const timeoutMs = tier === "extraction" ? 120_000 : 360_000;
 
   // Token budget guard: warn if estimated input tokens are very high
   const estimatedInputChars = systemPrompt.length + userPrompt.length;
