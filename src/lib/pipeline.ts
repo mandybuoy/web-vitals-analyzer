@@ -254,11 +254,11 @@ export interface PipelineOptions {
   techStack?: string[];
 }
 
-const PIPELINE_TOTAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes max
+const PIPELINE_TOTAL_TIMEOUT_MS = 12 * 60 * 1000; // 12 minutes max
 
 class PipelineTimeoutError extends Error {
   constructor() {
-    super("Pipeline exceeded maximum time limit (10 minutes)");
+    super("Pipeline exceeded maximum time limit (12 minutes)");
     this.name = "PipelineTimeoutError";
   }
 }
@@ -709,8 +709,9 @@ export async function runPipeline(
     const finalTechStack = Array.from(
       new Set([...userStack, ...autoDetectedStack]),
     );
+    // Use full network request list for duplicate detection (not truncated top-30)
     const duplicateResources = findDuplicateResources(
-      primaryPsi?.networkRequests,
+      primaryPsi?.allNetworkRequests ?? primaryPsi?.networkRequests,
     );
 
     // Extract INP script summary from bootup-time diagnostic
@@ -770,7 +771,8 @@ export async function runPipeline(
           schema: deviceReportSchema,
           analysisId,
           tier: "intelligence",
-          signal: getAbortSignal(analysisId),
+          // Don't pass pipeline abort signal — let SDK timeout handle it.
+          // Pipeline abort kills in-flight LLM calls that are still working.
         }),
         jsAnalysisPromise,
       ]);

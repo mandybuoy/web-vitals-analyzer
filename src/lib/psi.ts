@@ -108,6 +108,26 @@ function stripUrlParams(url: string): string {
   }
 }
 
+/**
+ * Normalize URL for duplicate detection — preserves identity params.
+ * Analytics URLs like gtag/js?id=G-XXX need the id param kept,
+ * otherwise different tracking properties look like duplicates.
+ */
+function normalizeUrlForDedup(url: string): string {
+  try {
+    const u = new URL(url);
+    // For gtag/analytics, keep the 'id' param (distinguishes properties)
+    if (/gtag\/js|googletagmanager\.com/.test(u.hostname + u.pathname)) {
+      const id = u.searchParams.get("id");
+      return u.origin + u.pathname + (id ? `?id=${id}` : "");
+    }
+    // For all other URLs, strip params
+    return u.origin + u.pathname;
+  } catch {
+    return url;
+  }
+}
+
 /** Sort key varies by audit type */
 const SORT_KEY_BY_AUDIT: Record<string, keyof ResourceItem> = {
   "bootup-time": "wastedMs",
@@ -189,6 +209,27 @@ function extractNetworkRequests(audits: any): NetworkRequestItem[] | undefined {
   mapped.sort((a, b) => b.transferSize - a.transferSize);
 
   return mapped.slice(0, MAX_NETWORK_REQUESTS);
+}
+
+/**
+ * Extract ALL network request URLs for duplicate detection (no size limit).
+ * Uses normalizeUrlForDedup to preserve identity params on analytics URLs.
+ */
+function extractAllRequestsForDedup(
+  audits: Record<string, any>,
+): NetworkRequestItem[] | undefined {
+  const rawItems = audits["network-requests"]?.details?.items;
+  if (!Array.isArray(rawItems) || rawItems.length === 0) return undefined;
+
+  return rawItems
+    .filter((item: any) => item.url && item.transferSize != null)
+    .map((item: any) => ({
+      url: normalizeUrlForDedup(item.url),
+      resourceType: item.resourceType || "Other",
+      transferSize: Math.round(item.transferSize),
+      startTime: Math.round(item.startTime || 0),
+      endTime: Math.round(item.endTime || 0),
+    }));
 }
 
 /** Extract script treemap data (module-level JS breakdown) */
@@ -500,6 +541,7 @@ export async function fetchPSI(
       });
 
     const networkRequests = extractNetworkRequests(audits);
+    const allNetworkRequests = extractAllRequestsForDedup(audits);
     const scriptTreemap = extractScriptTreemap(audits);
 
     return {
@@ -512,6 +554,7 @@ export async function fetchPSI(
       diagnostics,
       opportunities,
       networkRequests,
+      allNetworkRequests,
       scriptTreemap,
     };
   }

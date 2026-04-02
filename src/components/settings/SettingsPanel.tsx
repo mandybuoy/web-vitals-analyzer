@@ -16,6 +16,7 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
   const [extractionModel, setExtractionModel] = useState("");
   const [intelligenceModel, setIntelligenceModel] = useState("");
   const [showCosts, setShowCosts] = useState(false);
+  const [costPage, setCostPage] = useState(0);
 
   // Prompt editor state
   const [showPrompts, setShowPrompts] = useState(false);
@@ -402,31 +403,129 @@ export default function SettingsPanel({ open, onClose }: SettingsPanelProps) {
                       <p className="text-lg text-vecton-dark font-mono">
                         ${settings.costs.total_spend.toFixed(4)}
                       </p>
+                      <p className="text-[11px] text-vecton-dark/40 mt-1">
+                        {settings.costs.analyses.length} LLM calls across all
+                        scans
+                      </p>
                     </div>
 
+                    {/* Per-scan cost breakdown with pagination */}
                     {settings.costs.analyses.length > 0 ? (
-                      <div className="space-y-1 max-h-60 overflow-y-auto">
-                        {settings.costs.analyses
-                          .slice(0, 20)
-                          .map((entry, i) => (
-                            <div
-                              key={i}
-                              className="flex items-center justify-between p-2 rounded bg-white/30 text-xs"
-                            >
-                              <div>
-                                <span className="text-vecton-dark/50 font-mono">
-                                  {entry.model.split("/").pop()}
-                                </span>
-                                <span className="text-vecton-dark/50 ml-2">
-                                  {entry.tier}
-                                </span>
+                      (() => {
+                        const COST_PAGE_SIZE = 5;
+                        // Group by analysis_id
+                        const scans = new Map<
+                          string,
+                          {
+                            url: string;
+                            calls: number;
+                            cost: number;
+                            tokens: number;
+                            timestamp: string;
+                          }
+                        >();
+                        settings.costs.analyses.forEach((entry) => {
+                          const existing = scans.get(entry.analysis_id);
+                          if (existing) {
+                            existing.calls++;
+                            existing.cost += entry.cost_total;
+                            existing.tokens +=
+                              entry.input_tokens + entry.output_tokens;
+                          } else {
+                            scans.set(entry.analysis_id, {
+                              url: entry.url || "unknown",
+                              calls: 1,
+                              cost: entry.cost_total,
+                              tokens: entry.input_tokens + entry.output_tokens,
+                              timestamp: entry.timestamp,
+                            });
+                          }
+                        });
+
+                        const sorted = Array.from(scans.values()).sort(
+                          (a, b) =>
+                            new Date(b.timestamp).getTime() -
+                            new Date(a.timestamp).getTime(),
+                        );
+                        const costTotalPages = Math.ceil(
+                          sorted.length / COST_PAGE_SIZE,
+                        );
+                        const costVisible = sorted.slice(
+                          costPage * COST_PAGE_SIZE,
+                          (costPage + 1) * COST_PAGE_SIZE,
+                        );
+
+                        return (
+                          <div className="space-y-1.5">
+                            {costVisible.map((scan, i) => (
+                              <div
+                                key={i}
+                                className="p-2 rounded bg-white/30 border border-vecton-dark/5"
+                              >
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs text-vecton-dark/60 font-mono truncate max-w-[65%]">
+                                    {
+                                      scan.url
+                                        .replace(/^https?:\/\//, "")
+                                        .split("/")[0]
+                                    }
+                                  </span>
+                                  <span
+                                    className={`text-xs font-mono font-medium ${
+                                      scan.cost > 2
+                                        ? "text-vital-poor"
+                                        : scan.cost > 1
+                                          ? "text-vital-needs"
+                                          : "text-vital-good"
+                                    }`}
+                                  >
+                                    ${scan.cost.toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[11px] text-vecton-dark/35">
+                                  <span>{scan.calls} calls</span>
+                                  <span>
+                                    {Math.round(scan.tokens / 1000)}K tokens
+                                  </span>
+                                  <span className="ml-auto">
+                                    {new Date(
+                                      scan.timestamp,
+                                    ).toLocaleDateString()}
+                                  </span>
+                                </div>
                               </div>
-                              <span className="text-vecton-dark/60 font-mono">
-                                ${entry.cost_total.toFixed(4)}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
+                            ))}
+
+                            {costTotalPages > 1 && (
+                              <div className="flex items-center justify-center gap-3 pt-2">
+                                <button
+                                  onClick={() =>
+                                    setCostPage((p) => Math.max(0, p - 1))
+                                  }
+                                  disabled={costPage === 0}
+                                  className="text-[11px] px-2 py-1 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Prev
+                                </button>
+                                <span className="text-[11px] text-vecton-dark/35 font-mono">
+                                  {costPage + 1}/{costTotalPages}
+                                </span>
+                                <button
+                                  onClick={() =>
+                                    setCostPage((p) =>
+                                      Math.min(costTotalPages - 1, p + 1),
+                                    )
+                                  }
+                                  disabled={costPage >= costTotalPages - 1}
+                                  className="text-[11px] px-2 py-1 rounded border border-vecton-dark/10 text-vecton-dark/50 hover:bg-vecton-dark/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()
                     ) : (
                       <p className="text-xs text-vecton-dark/30">
                         No cost data yet

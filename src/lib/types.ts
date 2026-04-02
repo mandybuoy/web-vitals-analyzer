@@ -20,6 +20,7 @@ export interface PSIResult {
   diagnostics: DiagnosticItem[];
   opportunities: OpportunityItem[];
   networkRequests?: NetworkRequestItem[];
+  allNetworkRequests?: NetworkRequestItem[]; // Full list for duplicate detection (not truncated)
   scriptTreemap?: ScriptTreemapModule[];
   screenshots?: string[];
 }
