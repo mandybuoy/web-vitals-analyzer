@@ -168,7 +168,65 @@ const deviceReportSchema = z.object({
       evidence_basis: evidenceBasisEnum.optional(),
     }),
   ),
+  inp_element_risks: z
+    .array(
+      z.object({
+        selector: z.string(),
+        label: z.string(),
+        interaction_type: z.enum(["Click", "Type", "Keypress"]),
+        risk: z.enum(["high", "medium", "low"]),
+        contributing_scripts: z.array(z.string()),
+        reason: z.string(),
+        recommendation: z.string(),
+      }),
+    )
+    .optional(),
 });
+
+// ----- INP Phase Breakdown (deterministic, 0 LLM cost) -----
+
+import type { INPPhaseBreakdown } from "./types";
+
+function computeINPPhaseBreakdown(psiResult: PSIResult): INPPhaseBreakdown {
+  // Use field INP if available, otherwise TBT as proxy
+  const fieldINP = psiResult.fieldData?.inp?.percentile;
+  const labTBT = psiResult.metrics.tbt.value;
+  const inpMs = fieldINP ?? labTBT;
+
+  if (inpMs <= 0) {
+    return {
+      total_inp_ms: 0,
+      input_delay_ms: 0,
+      processing_ms: 0,
+      presentation_delay_ms: 0,
+    };
+  }
+
+  // Use long-task data to inform the split
+  const longTaskItems =
+    psiResult.diagnostics.find((d) => d.id === "long-tasks")?.items ?? [];
+  const totalLongTaskMs = longTaskItems.reduce(
+    (sum, t) => sum + (t.wastedMs ?? 0),
+    0,
+  );
+
+  // Heuristic: processing dominates for JS-heavy sites
+  const hasLongTasks = totalLongTaskMs > 0;
+  const processing = hasLongTasks
+    ? Math.min(inpMs * 0.65, totalLongTaskMs * 0.4)
+    : inpMs * 0.5;
+  const inputDelay = hasLongTasks
+    ? Math.min(inpMs * 0.15, totalLongTaskMs * 0.1)
+    : inpMs * 0.1;
+  const presentation = Math.max(0, inpMs - processing - inputDelay);
+
+  return {
+    total_inp_ms: Math.round(inpMs),
+    input_delay_ms: Math.round(Math.max(0, inputDelay)),
+    processing_ms: Math.round(Math.max(0, processing)),
+    presentation_delay_ms: Math.round(Math.max(0, presentation)),
+  };
+}
 
 // ----- Friendly error messages -----
 
@@ -796,6 +854,9 @@ export async function runPipeline(
       if (jsAnalysis.length > 0) {
         data.js_analysis = jsAnalysis;
       }
+
+      // Attach deterministic INP phase breakdown (no LLM cost)
+      data.inp_phase_breakdown = computeINPPhaseBreakdown(psiResult);
 
       return data;
     };

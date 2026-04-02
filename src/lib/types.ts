@@ -84,6 +84,27 @@ export interface DuplicateResource {
   resourceType: string;
 }
 
+// ----- INP Phase Breakdown & Element Risk -----
+
+export interface INPPhaseBreakdown {
+  total_inp_ms: number;
+  input_delay_ms: number;
+  processing_ms: number;
+  presentation_delay_ms: number;
+}
+
+export type INPRiskLevel = "high" | "medium" | "low";
+
+export interface INPElementRisk {
+  selector: string;
+  label: string;
+  interaction_type: "Click" | "Type" | "Keypress";
+  risk: INPRiskLevel;
+  contributing_scripts: string[];
+  reason: string;
+  recommendation: string;
+}
+
 export interface ScriptImpactItem {
   url: string;
   totalBytes: number;
@@ -296,6 +317,8 @@ export interface DeviceReport {
   priority_table: PriorityFix[];
   inp_script_summary?: ScriptImpactItem[];
   js_analysis?: JSAnalysisResult[];
+  inp_phase_breakdown?: INPPhaseBreakdown;
+  inp_element_risks?: INPElementRisk[];
 }
 
 // ----- Network Stack Info -----

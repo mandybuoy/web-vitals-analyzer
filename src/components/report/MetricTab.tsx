@@ -1,14 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import type { Issue, ScriptImpactItem, JSAnalysisResult } from "@/lib/types";
+import type {
+  Issue,
+  ScriptImpactItem,
+  JSAnalysisResult,
+  INPPhaseBreakdown as INPPhaseBreakdownType,
+  INPElementRisk,
+} from "@/lib/types";
 import IssueCard from "./IssueCard";
+import INPPhaseBreakdown from "./INPPhaseBreakdown";
+import INPElementTable from "./INPElementTable";
 
 interface MetricTabProps {
   issues: Issue[];
   metricLabel: string;
   scriptSummary?: ScriptImpactItem[];
   jsAnalysis?: JSAnalysisResult[];
+  inpPhaseBreakdown?: INPPhaseBreakdownType;
+  inpElementRisks?: INPElementRisk[];
 }
 
 function formatBytes(bytes: number): string {
@@ -207,6 +217,8 @@ export default function MetricTab({
   metricLabel,
   scriptSummary,
   jsAnalysis,
+  inpPhaseBreakdown,
+  inpElementRisks,
 }: MetricTabProps) {
   const sorted = [...issues].sort(
     (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity],
@@ -230,6 +242,16 @@ export default function MetricTab({
 
   return (
     <div className="space-y-6">
+      {/* INP Phase Breakdown — aggregate phase split */}
+      {inpPhaseBreakdown && inpPhaseBreakdown.total_inp_ms > 0 && (
+        <INPPhaseBreakdown breakdown={inpPhaseBreakdown} />
+      )}
+
+      {/* INP Element Risk — per-element risk assessment */}
+      {inpElementRisks && inpElementRisks.length > 0 && (
+        <INPElementTable elements={inpElementRisks} />
+      )}
+
       {/* INP Script Summary — shows top scripts by main thread time */}
       {scriptSummary && scriptSummary.length > 0 && (
         <ScriptSummarySection scripts={scriptSummary} />

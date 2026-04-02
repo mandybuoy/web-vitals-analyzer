@@ -165,6 +165,8 @@ export default function ReportView({ report }: ReportViewProps) {
                   metricLabel="INP"
                   scriptSummary={device.inp_script_summary}
                   jsAnalysis={device.js_analysis}
+                  inpPhaseBreakdown={device.inp_phase_breakdown}
+                  inpElementRisks={device.inp_element_risks}
                 />
               )}
               {activeTab === "fcp" && (
