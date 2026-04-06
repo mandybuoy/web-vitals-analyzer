@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
-import type { HistoryEntry, VitalRating, AnalysisReport } from "@/lib/types";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { HistoryEntry, VitalRating } from "@/lib/types";
 import { track } from "@/lib/analytics";
-import * as api from "@/lib/api";
 import RatingPill from "../report/RatingPill";
-import ComparisonView from "./ComparisonView";
 
 const PAGE_SIZE = 10;
 
@@ -35,15 +34,10 @@ function RatingDot({ rating }: { rating: VitalRating | null }) {
 }
 
 export default function HistoryList({ entries, onSelect }: HistoryListProps) {
+  const router = useRouter();
   const [page, setPage] = useState(0);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [compareLoading, setCompareLoading] = useState(false);
-  const [compareData, setCompareData] = useState<{
-    reportA: AnalysisReport;
-    reportB: AnalysisReport;
-  } | null>(null);
-  const compareRef = useRef<HTMLDivElement>(null);
 
   if (entries.length === 0) {
     return (
@@ -84,32 +78,11 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
     });
   };
 
-  const handleCompare = async () => {
+  const handleCompare = () => {
     const ids = Array.from(selected);
     if (ids.length !== 2) return;
-    setCompareLoading(true);
-    try {
-      const [reportA, reportB] = await Promise.all([
-        api.getReport(ids[0]),
-        api.getReport(ids[1]),
-      ]);
-      setCompareData({ reportA, reportB });
-      // Scroll to comparison after render
-      setTimeout(() => {
-        compareRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-      track("comparison_opened", {
-        id_a: ids[0],
-        id_b: ids[1],
-      });
-    } catch {
-      // Non-fatal
-    } finally {
-      setCompareLoading(false);
-    }
+    track("comparison_opened", { id_a: ids[0], id_b: ids[1] });
+    router.push(`/compare/${ids[0]}/${ids[1]}`);
   };
 
   return (
@@ -161,31 +134,9 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
           {selected.size === 2 && (
             <button
               onClick={handleCompare}
-              disabled={compareLoading}
-              className="px-4 py-2 bg-vecton-orange text-vecton-light text-xs rounded-lg hover:bg-vecton-orange/90 disabled:opacity-50 transition-colors press-scale focus-ring flex items-center gap-2"
+              className="px-4 py-2 bg-vecton-orange text-vecton-light text-xs rounded-lg hover:bg-vecton-orange/90 transition-colors press-scale focus-ring"
             >
-              {compareLoading ? (
-                <>
-                  <svg
-                    className="w-3 h-3 animate-spin"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeDasharray="32"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                  Loading...
-                </>
-              ) : (
-                "Compare Selected"
-              )}
+              Compare Selected
             </button>
           )}
           {selected.size === 1 && (
@@ -324,20 +275,6 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
           >
             Next
           </button>
-        </div>
-      )}
-
-      {/* Comparison view */}
-      {compareData && (
-        <div ref={compareRef}>
-          <ComparisonView
-            reportA={compareData.reportA}
-            reportB={compareData.reportB}
-            onClose={() => {
-              setCompareData(null);
-              setSelected(new Set());
-            }}
-          />
         </div>
       )}
     </div>
