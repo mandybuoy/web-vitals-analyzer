@@ -40,11 +40,10 @@ A self-hosted web performance analysis tool that takes a URL, collects real-user
 ## Known Limitations
 
 1. **CrUX coverage gaps** — Low-traffic or newly launched URLs return no field data. Analysis falls back to lab-only metrics, which don't reflect real-user experience.
-2. **Single-URL workflow** — Each scan runs one URL at a time. No batch scanning or site-wide crawl. Dashboard comparison requires running individual scans first.
-3. **LLM output variance** — Recommendations can vary between runs for the same URL. Prompt constraints reduce this but don't eliminate it.
-4. **Third-party impact is qualitative** — Impact severity (critical/high/medium/low) comes from LLM judgment, not measured blocking time. No numerical impact scoring.
-5. **No SPA route-level analysis** — For single-page apps, only the initial load is analyzed. Client-side navigations and route-level INP are not captured.
-6. **PSI rate limits** — Google PSI API has per-key quotas. High-volume scanning requires key rotation or quota increases.
-7. **JS analysis is heuristic** — First-party script analysis uses pattern matching (regex for forced reflows, sync XHR, etc.), not AST parsing. Can miss obfuscated patterns or produce false positives in bundled code.
-8. **Minified code is opaque** — Production bundles are minified and often mangled. Regex-based detection can't reliably map patterns back to original source. Source maps are not fetched or used, so recommendations reference minified identifiers rather than authored code.
-9. **Large bundles exceed analysis limits** — Heavily bundled sites (e.g., large AEM/enterprise SPAs) can produce JS files that exceed the token window when fed to the LLM. Only the top 1-2 scripts are downloaded and analyzed; the rest are skipped entirely. Webpack/Rollup chunk splitting means the problematic code may live in a chunk we never see.
+2. **LLM output variance** — Recommendations can vary between runs for the same URL. Prompt constraints reduce this but don't eliminate it.
+3. **Third-party impact is qualitative** — Impact severity (critical/high/medium/low) comes from LLM judgment, not measured blocking time. No numerical impact scoring.
+4. **No SPA route-level analysis** — For single-page apps, only the initial load is analyzed. Client-side navigations and route-level INP are not captured.
+5. **PSI rate limits** — Google PSI API has per-key quotas. High-volume scanning requires key rotation or quota increases.
+6. **JS analysis is heuristic** — First-party script analysis uses pattern matching (regex for forced reflows, sync XHR, etc.), not AST parsing. Can miss obfuscated patterns or produce false positives in bundled code.
+7. **Minified code is opaque** — Production bundles are minified and often mangled. Regex-based detection can't reliably map patterns back to original source. Source maps are not fetched or used, so recommendations reference minified identifiers rather than authored code.
+8. **Large bundles exceed analysis limits** — Heavily bundled sites (e.g., large AEM/enterprise SPAs) can produce JS files that exceed the token window when fed to the LLM. Only the top 1-2 scripts are downloaded and analyzed; the rest are skipped entirely. Webpack/Rollup chunk splitting means the problematic code may live in a chunk we never see.
