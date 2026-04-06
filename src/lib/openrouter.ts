@@ -75,6 +75,7 @@ export async function callOpenRouter<T>(options: {
   tier: "extraction" | "intelligence";
   signal?: AbortSignal;
   maxRetries?: number;
+  onProgress?: (tokenEstimate: number) => void;
 }): Promise<LLMResponse<T>> {
   const {
     model,
@@ -85,6 +86,7 @@ export async function callOpenRouter<T>(options: {
     tier,
     signal,
     maxRetries = 1,
+    onProgress,
   } = options;
 
   const apiKey = getAnthropicApiKey();
@@ -131,18 +133,61 @@ export async function callOpenRouter<T>(options: {
 
     let response: Anthropic.Message;
     try {
-      response = await client.messages.create(
-        {
-          model: anthropicModel,
-          max_tokens: 16384,
-          system: systemPrompt,
-          messages: userMessages,
-        },
-        {
-          timeout: timeoutMs,
-          signal: signal,
-        },
-      );
+      if (tier === "intelligence") {
+        // Streaming: required by Anthropic SDK for large max_tokens
+        const stream = client.messages.stream(
+          {
+            model: anthropicModel,
+            max_tokens: 65536,
+            system: systemPrompt,
+            messages: userMessages,
+          },
+          {
+            timeout: timeoutMs,
+            signal: signal,
+          },
+        );
+
+        // Throttled progress updates (at most 1x/sec)
+        if (onProgress) {
+          let tokenEstimate = 0;
+          let lastUpdate = 0;
+          stream.on("text", (delta) => {
+            tokenEstimate += Math.ceil(delta.length / 4);
+            const now = Date.now();
+            if (now - lastUpdate > 1000) {
+              lastUpdate = now;
+              onProgress(tokenEstimate);
+            }
+          });
+        }
+
+        // Safety timeout: SDK streaming timeout may only cover connection
+        const safetyTimeout = new Promise<never>((_, reject) => {
+          const timer = setTimeout(
+            () =>
+              reject(new Error(`Stream timed out after ${timeoutMs / 1000}s`)),
+            timeoutMs,
+          );
+          // Don't block Node process exit
+          if (timer.unref) timer.unref();
+        });
+        response = await Promise.race([stream.finalMessage(), safetyTimeout]);
+      } else {
+        // Extraction: non-streaming, small output
+        response = await client.messages.create(
+          {
+            model: anthropicModel,
+            max_tokens: 16384,
+            system: systemPrompt,
+            messages: userMessages,
+          },
+          {
+            timeout: timeoutMs,
+            signal: signal,
+          },
+        );
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
         throw new Error("Analysis cancelled");
