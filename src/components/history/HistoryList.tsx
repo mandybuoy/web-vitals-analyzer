@@ -201,11 +201,11 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
                 }}
                 className="flex-1 text-left p-3 focus-ring"
               >
-                <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-xs text-vecton-dark/60 font-mono truncate max-w-[70%]">
+                <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
+                  <p className="text-xs text-vecton-dark/60 font-mono truncate min-w-0">
                     {entry.url}
                   </p>
-                  <p className="text-xs text-vecton-dark/50 flex-shrink-0">
+                  <p className="text-xs text-vecton-dark/50 flex-shrink-0 whitespace-nowrap">
                     {formatDate(entry.timestamp)}
                   </p>
                 </div>
