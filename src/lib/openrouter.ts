@@ -134,7 +134,7 @@ export async function callOpenRouter<T>(options: {
       response = await client.messages.create(
         {
           model: anthropicModel,
-          max_tokens: 65536,
+          max_tokens: tier === "intelligence" ? 32768 : 16384,
           system: systemPrompt,
           messages: userMessages,
         },
