@@ -13,21 +13,86 @@ const RISK_STYLES: Record<INPRiskLevel, string> = {
   low: "bg-vital-good/10 text-vital-good",
 };
 
-const RISK_ORDER: Record<INPRiskLevel, number> = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
 const INTERACTION_STYLES: Record<string, string> = {
   Click: "bg-vecton-orange/10 text-vecton-orange/80",
   Type: "bg-vecton-purple/10 text-vecton-purple/80",
   Keypress: "bg-blue-500/10 text-blue-600/80",
 };
 
-function truncateSelector(sel: string, max = 45): string {
+function truncateSelector(sel: string, max = 50): string {
   if (sel.length <= max) return sel;
   return sel.slice(0, max - 3) + "...";
+}
+
+function inpColor(ms: number): string {
+  if (ms < 200) return "text-vital-good";
+  if (ms < 500) return "text-vital-needs";
+  return "text-vital-poor";
+}
+
+const PHASES = [
+  {
+    key: "input_delay_ms" as const,
+    label: "Input Delay",
+    color: "bg-vital-needs",
+  },
+  {
+    key: "processing_ms" as const,
+    label: "Processing",
+    color: "bg-vital-poor",
+  },
+  {
+    key: "presentation_delay_ms" as const,
+    label: "Presentation",
+    color: "bg-vecton-purple",
+  },
+];
+
+function MiniPhaseBar({ element }: { element: INPElementRisk }) {
+  const total = element.estimated_inp_ms;
+  if (total <= 0) return null;
+
+  return (
+    <div className="mb-3">
+      <div className="flex h-5 rounded overflow-hidden border border-vecton-dark/10">
+        {PHASES.map((phase) => {
+          const value = element[phase.key];
+          const pct = total > 0 ? (value / total) * 100 : 0;
+          if (pct < 1) return null;
+          return (
+            <div
+              key={phase.key}
+              className={`${phase.color} flex items-center justify-center min-w-[30px]`}
+              style={{ width: `${pct}%` }}
+              title={`${phase.label}: ${value}ms`}
+            >
+              {pct > 18 && (
+                <span className="text-[9px] text-white/90 font-mono truncate px-0.5">
+                  {value}ms
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex mt-1 gap-3">
+        {PHASES.map((phase) => {
+          const value = element[phase.key];
+          return (
+            <div key={phase.key} className="flex items-center gap-1">
+              <div className={`w-1.5 h-1.5 rounded-full ${phase.color}`} />
+              <span className="text-[10px] text-vecton-dark/40">
+                {phase.label}
+              </span>
+              <span className="text-[10px] text-vecton-dark/60 font-mono">
+                {value}ms
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 function ElementRow({ element }: { element: INPElementRisk }) {
@@ -72,6 +137,11 @@ function ElementRow({ element }: { element: INPElementRisk }) {
           >
             {element.risk}
           </span>
+          <span
+            className={`text-sm font-mono font-medium ${inpColor(element.estimated_inp_ms)}`}
+          >
+            {Math.round(element.estimated_inp_ms)} ms
+          </span>
         </div>
       </button>
 
@@ -81,7 +151,10 @@ function ElementRow({ element }: { element: INPElementRisk }) {
         style={{ gridTemplateRows: open ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="px-4 pb-4 pt-1 border-t border-vecton-dark/5">
+          <div className="px-4 pb-4 pt-2 border-t border-vecton-dark/5">
+            {/* Mini phase breakdown */}
+            <MiniPhaseBar element={element} />
+
             {/* Reason */}
             <p className="text-xs text-vecton-dark/60 mb-3">{element.reason}</p>
 
@@ -122,8 +195,9 @@ function ElementRow({ element }: { element: INPElementRisk }) {
 }
 
 export default function INPElementTable({ elements }: INPElementTableProps) {
+  // Sort by estimated INP descending (highest ms first)
   const sorted = [...elements].sort(
-    (a, b) => RISK_ORDER[a.risk] - RISK_ORDER[b.risk],
+    (a, b) => (b.estimated_inp_ms ?? 0) - (a.estimated_inp_ms ?? 0),
   );
 
   return (
@@ -131,7 +205,7 @@ export default function INPElementTable({ elements }: INPElementTableProps) {
       <div className="flex items-center gap-3 mb-3">
         <div className="w-4 h-[1px] bg-vecton-purple/40" />
         <h4 className="text-[11px] text-vecton-dark/50 uppercase tracking-widest">
-          Element INP Risk
+          Element INP Analysis
         </h4>
         <div className="flex-1 h-[1px] bg-vecton-dark/10" />
       </div>
@@ -139,8 +213,8 @@ export default function INPElementTable({ elements }: INPElementTableProps) {
       {/* Info banner */}
       <div className="px-3 py-2 rounded bg-vecton-dark/5 border border-vecton-dark/8 mb-3">
         <p className="text-[11px] text-vecton-dark/40">
-          Risk assessment based on HTML structure, script analysis, and main
-          thread blocking data
+          Estimated INP per element based on HTML structure, script analysis,
+          and main thread blocking data
         </p>
       </div>
 
