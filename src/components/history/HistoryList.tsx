@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { HistoryEntry, VitalRating, AnalysisReport } from "@/lib/types";
 import { track } from "@/lib/analytics";
 import * as api from "@/lib/api";
 import RatingPill from "../report/RatingPill";
 import ComparisonView from "./ComparisonView";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 interface HistoryListProps {
   entries: HistoryEntry[];
@@ -43,6 +43,7 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
     reportA: AnalysisReport;
     reportB: AnalysisReport;
   } | null>(null);
+  const compareRef = useRef<HTMLDivElement>(null);
 
   if (entries.length === 0) {
     return (
@@ -52,13 +53,19 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
     );
   }
 
-  // Filter by search
+  // Filter by search, then sort selected to top
   const filtered = search
     ? entries.filter((e) => e.url.toLowerCase().includes(search.toLowerCase()))
     : entries;
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const visible = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const sorted = [...filtered].sort((a, b) => {
+    const aSelected = selected.has(a.analysis_id) ? 0 : 1;
+    const bSelected = selected.has(b.analysis_id) ? 0 : 1;
+    return aSelected - bSelected;
+  });
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE);
+  const visible = sorted.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
@@ -87,6 +94,13 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
         api.getReport(ids[1]),
       ]);
       setCompareData({ reportA, reportB });
+      // Scroll to comparison after render
+      setTimeout(() => {
+        compareRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
       track("comparison_opened", {
         id_a: ids[0],
         id_b: ids[1],
@@ -138,37 +152,47 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
         />
       </div>
 
-      {/* Compare button */}
-      {selected.size === 2 && (
-        <div className="mb-3">
-          <button
-            onClick={handleCompare}
-            disabled={compareLoading}
-            className="px-4 py-2 bg-vecton-orange text-vecton-light text-xs rounded-lg hover:bg-vecton-orange/90 disabled:opacity-50 transition-colors press-scale focus-ring flex items-center gap-2"
-          >
-            {compareLoading ? (
-              <>
-                <svg
-                  className="w-3 h-3 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeDasharray="32"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                Loading...
-              </>
-            ) : (
-              "Compare Selected"
-            )}
-          </button>
+      {/* Selection count + Compare button */}
+      {selected.size > 0 && (
+        <div className="mb-3 flex items-center gap-3">
+          <span className="text-xs text-vecton-dark/50">
+            {selected.size}/2 selected
+          </span>
+          {selected.size === 2 && (
+            <button
+              onClick={handleCompare}
+              disabled={compareLoading}
+              className="px-4 py-2 bg-vecton-orange text-vecton-light text-xs rounded-lg hover:bg-vecton-orange/90 disabled:opacity-50 transition-colors press-scale focus-ring flex items-center gap-2"
+            >
+              {compareLoading ? (
+                <>
+                  <svg
+                    className="w-3 h-3 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeDasharray="32"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  Loading...
+                </>
+              ) : (
+                "Compare Selected"
+              )}
+            </button>
+          )}
+          {selected.size === 1 && (
+            <span className="text-[11px] text-vecton-dark/30 italic">
+              Select one more to compare
+            </span>
+          )}
         </div>
       )}
 
@@ -305,14 +329,16 @@ export default function HistoryList({ entries, onSelect }: HistoryListProps) {
 
       {/* Comparison view */}
       {compareData && (
-        <ComparisonView
-          reportA={compareData.reportA}
-          reportB={compareData.reportB}
-          onClose={() => {
-            setCompareData(null);
-            setSelected(new Set());
-          }}
-        />
+        <div ref={compareRef}>
+          <ComparisonView
+            reportA={compareData.reportA}
+            reportB={compareData.reportB}
+            onClose={() => {
+              setCompareData(null);
+              setSelected(new Set());
+            }}
+          />
+        </div>
       )}
     </div>
   );
