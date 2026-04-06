@@ -100,6 +100,10 @@ export interface INPElementRisk {
   label: string;
   interaction_type: "Click" | "Type" | "Keypress";
   risk: INPRiskLevel;
+  estimated_inp_ms: number;
+  input_delay_ms: number;
+  processing_ms: number;
+  presentation_delay_ms: number;
   contributing_scripts: string[];
   reason: string;
   recommendation: string;
