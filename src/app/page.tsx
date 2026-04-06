@@ -1,11 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { track } from "@/lib/analytics";
 import { useHistory } from "@/hooks/useHistory";
-import ReportView from "@/components/report/ReportView";
-import PSIReportView from "@/components/report/PSIReportView";
 import ProgressBar from "@/components/progress/ProgressBar";
 import HistoryList from "@/components/history/HistoryList";
 import SettingsPanel from "@/components/settings/SettingsPanel";
@@ -41,6 +40,7 @@ const TECH_STACKS = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [techStack, setTechStack] = useState<string[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -90,9 +90,9 @@ export default function Home() {
     }
   };
 
-  const handleHistorySelect = async (id: string) => {
-    await analysis.loadReport(id);
+  const handleHistorySelect = (id: string) => {
     track("history_report_loaded", { analysis_id: id });
+    router.push(`/report/${id}`);
   };
 
   // Track analysis completion and failure
@@ -119,6 +119,8 @@ export default function Home() {
           null,
         psi_only: !!analysis.report.psi_only,
       });
+      // Navigate to report page
+      router.push(`/report/${analysis.report.id}`);
     }
     if (prevState.current === "running" && analysis.state === "error") {
       const errMsg = analysis.error ?? "";
@@ -372,22 +374,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* Report */}
-        {isDone &&
-          analysis.report &&
-          (analysis.report.psi_only ? (
-            <PSIReportView report={analysis.report} />
-          ) : (
-            <ReportView report={analysis.report} />
-          ))}
-
-        {/* History (idle only) */}
-        {analysis.state === "idle" && history.history.length > 0 && (
-          <HistoryList
-            entries={history.history}
-            onSelect={handleHistorySelect}
-          />
-        )}
+        {/* History (idle or done — report is now on /report/[id]) */}
+        {(analysis.state === "idle" || analysis.state === "done") &&
+          history.history.length > 0 && (
+            <HistoryList
+              entries={history.history}
+              onSelect={handleHistorySelect}
+            />
+          )}
 
         {/* Idle empty state hint */}
         {analysis.state === "idle" && history.history.length === 0 && (
