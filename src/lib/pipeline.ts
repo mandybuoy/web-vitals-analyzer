@@ -829,8 +829,8 @@ export async function runPipeline(
           schema: deviceReportSchema,
           analysisId,
           tier: "intelligence",
+          maxRetries: 0, // Don't retry — each attempt is 4-5 min
           // Don't pass pipeline abort signal — let SDK timeout handle it.
-          // Pipeline abort kills in-flight LLM calls that are still working.
         }),
         jsAnalysisPromise,
       ]);
@@ -887,8 +887,18 @@ export async function runPipeline(
       analysisPromises.push(Promise.resolve(null));
     }
 
+    // Heartbeat: show progress during LLM analysis so user knows it's alive
+    const stage3Start = Date.now();
+    const llmHeartbeat = setInterval(() => {
+      const elapsed = Math.round((Date.now() - stage3Start) / 1000);
+      const pct = Math.min(78, 40 + Math.round(elapsed / 8));
+      updateStage(analysisId, 3, "Analyzing", pct);
+      setDetail(analysisId, `AI analysis in progress... ${elapsed}s`);
+    }, 15_000);
+
     const [mobileReport, desktopReport] = await Promise.all(analysisPromises);
 
+    clearInterval(llmHeartbeat);
     updateStage(analysisId, 4, "Generating", 85);
     setDetail(analysisId, "Building report...");
 
